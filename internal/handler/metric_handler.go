@@ -20,7 +20,7 @@ var validMetricTypes = map[MetricType]struct{}{Gauge: {}, Counter: {}}
 var memStorage = repository.NewMemStorage()
 
 func GetMetrics(w http.ResponseWriter, r *http.Request) {
-	if "text/plain" != r.Header.Get("Content-Type") {
+	if r.Header.Get("Content-Type") != "text/plain" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}

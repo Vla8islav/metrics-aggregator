@@ -14,7 +14,7 @@ import (
 
 func newReqWithVars(t *testing.T, method string, vars map[string]string, contentType string) *http.Request {
 	t.Helper()
-
+	//
 	req := httptest.NewRequest(method, "http://sample.ru/update/", nil)
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
@@ -34,28 +34,28 @@ func TestGetMetrics(t *testing.T) {
 	}{
 		{
 			name: "gauge ok", vars: map[string]string{
-				"metricType":  string(Gauge),
-				"metricName":  defaultMetricName,
-				"metricValue": "1.124",
-			},
+			"metricType":  string(Gauge),
+			"metricName":  defaultMetricName,
+			"metricValue": "1.124",
+		},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
 		},
 		{
 			name: "counter ok", vars: map[string]string{
-				"metricType":  string(Counter),
-				"metricName":  defaultMetricName,
-				"metricValue": "1",
-			},
+			"metricType":  string(Counter),
+			"metricName":  defaultMetricName,
+			"metricValue": "1",
+		},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
 		},
 		{
 			name: "bad content type", vars: map[string]string{
-				"metricType":  string(Gauge),
-				"metricName":  defaultMetricName,
-				"metricValue": "1.488",
-			},
+			"metricType":  string(Gauge),
+			"metricName":  defaultMetricName,
+			"metricValue": "1.488",
+		},
 			contentType: "application/json",
 			wantStatus:  http.StatusBadRequest,
 		},
