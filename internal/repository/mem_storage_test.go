@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"math/rand"
 	"sync"
 	"testing"
 
@@ -8,26 +9,31 @@ import (
 )
 
 func TestMemStorageIncrementCounter(t *testing.T) {
+	t.Parallel()
 	s := NewMemStorage()
 
 	s.IncrementCounter(5)
-	s.IncrementCounter(3)
+	assert.EqualValues(t, 5, s.GetCounter())
 
+	s.IncrementCounter(3)
 	assert.EqualValues(t, 8, s.GetCounter())
 
 }
 
 func TestMemStorageSetGauge(t *testing.T) {
+	t.Parallel()
 	s := NewMemStorage()
 	delta := 0.000001
-	s.SetGauge(42.5)
 
+	s.SetGauge(42.5)
 	assert.InDelta(t, 42.5, s.GetGauge(), delta)
+
 	s.SetGauge(-12.5)
 	assert.InDelta(t, -12.5, s.GetGauge(), delta)
 }
 
 func TestMemStorageConcurrentAccessCounter(t *testing.T) {
+	t.Parallel()
 	s := NewMemStorage()
 	var wg sync.WaitGroup
 	const workers = 100
@@ -52,6 +58,7 @@ func TestMemStorageConcurrentAccessCounter(t *testing.T) {
 }
 
 func TestMemStorageConcurrentAccessGauge(t *testing.T) {
+	t.Parallel()
 	s := NewMemStorage()
 	var wg sync.WaitGroup
 	const workers = 100
@@ -61,7 +68,7 @@ func TestMemStorageConcurrentAccessGauge(t *testing.T) {
 	var mu sync.Mutex
 
 	for i := 0; i < workers; i++ {
-		v := float64(i) + 0.1
+		v := float64(i) + 0.1 + rand.Float64()
 
 		mu.Lock()
 		values[v] = struct{}{}

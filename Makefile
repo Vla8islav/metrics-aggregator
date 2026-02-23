@@ -8,3 +8,7 @@ build:
 
 run: build
 	./bin/server
+
+lint:
+	golangci-lint run ./...
+	go vet -vettool=$(which statictest) ./...
