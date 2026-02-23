@@ -22,7 +22,7 @@ func newReqWithVars(t *testing.T, method string, vars map[string]string, content
 	return mux.SetURLVars(req, vars)
 }
 
-func TestGetMetrics(t *testing.T) {
+func TestPostMetrics(t *testing.T) {
 	t.Parallel()
 	const defaultMetricName = "someMetricName"
 

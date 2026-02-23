@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 )
@@ -34,12 +35,14 @@ func (s *MemoryStorage) SetGauge(name string, gauge float64) {
 	s.namedGauge[name] = gauge
 }
 
+var ErrNotFound = errors.New("not found")
+
 func (s *MemoryStorage) GetGauge(name string) (float64, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	value, ok := s.namedGauge[name]
 	if !ok {
-		return 0.0, fmt.Errorf("gauge not found %s", name)
+		return 0.0, fmt.Errorf("%w: %s", ErrNotFound, name)
 	}
 	return value, nil
 }
@@ -49,7 +52,7 @@ func (s *MemoryStorage) GetCounter(name string) (int64, error) {
 	defer s.mutex.RUnlock()
 	value, ok := s.namedCounter[name]
 	if !ok {
-		return 0, fmt.Errorf("counter not found %s", name)
+		return 0, fmt.Errorf("%w: %s", ErrNotFound, name)
 	}
 	return value, nil
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -51,10 +52,14 @@ func GetMetrics(w http.ResponseWriter, r *http.Request) {
 	case Gauge:
 
 		gauge, err := repository.MemStorage.GetGauge(metricName)
-		if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		} else if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
 		gaugeStr := strconv.FormatFloat(gauge, 'f', -1, 64)
 		_, err = w.Write([]byte(gaugeStr))
 		if err != nil {
@@ -64,7 +69,10 @@ func GetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	case Counter:
 		counter, err := repository.MemStorage.GetCounter(metricName)
-		if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		} else if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
