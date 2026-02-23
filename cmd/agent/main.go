@@ -1,46 +1,24 @@
 package main
 
 import (
-	"math/rand"
-	"runtime"
-	"sync"
+	"context"
+	"log"
+	"time"
+
+	"github.com/Vla8islav/metrics-aggregator/internal/agent"
 )
 
-type Metrics struct {
-	Ms          runtime.MemStats
-	PollCount   int64
-	RandomValue float64
-
-	mu sync.Mutex
-}
-
-func (m *Metrics) updateRandomValue() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.RandomValue = rand.Float64()
-}
-
-func (m *Metrics) incrementPollCount() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.PollCount++
-}
-
-func (m *Metrics) readMemStats() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	runtime.ReadMemStats(&m.Ms)
-}
-
 func main() {
-	// Разработайте агент (HTTP-клиент) для сбора рантайм-метрик и их последующей отправки на сервер по протоколу HTTP.
-	// Собираем
-	metrics := Metrics{}
+	serverAddr := "http://localhost:8080"
+	pollInterval := 2 * time.Second
+	reportInterval := 10 * time.Second
 
-	metrics.updateRandomValue()
-	metrics.readMemStats()
-	metrics.incrementPollCount()
+	ag := agent.NewAgent(serverAddr, pollInterval, reportInterval)
 
-	// Отправляем на сервер
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	log.Printf("agent started: poll=%s report=%s server=%s", pollInterval, reportInterval, serverAddr)
+	ag.Start(ctx)
 
 }
