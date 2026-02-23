@@ -17,17 +17,11 @@ func GetMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get("Content-Type") != "text/plain" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	requestComponents := mux.Vars(r)
 
 	metricTypeStr := requestComponents["metricType"]
 	metricType := MetricType(metricTypeStr)
 	metricName := requestComponents["metricName"]
-	metricValue := requestComponents["metricValue"]
 
 	if _, found := validMetricTypes[metricType]; !found {
 		log.Printf("Invalid metric type: %s", metricType)
@@ -35,16 +29,11 @@ func GetMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Get metrics for %s %s %s", metricType, metricName, metricValue)
+	log.Printf("Get metrics for %s %s", metricType, metricName)
 	// let's do a request sanity check
 	if metricName == "" {
 		log.Printf("Metric name is empty %s", metricName)
 		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	if metricValue == "" {
-		log.Printf("Metric has an empty value '%s'", metricValue)
-		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
