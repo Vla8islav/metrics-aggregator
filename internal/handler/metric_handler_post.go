@@ -13,11 +13,12 @@ func PostMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		http.Error(w, "invalid method, expected post", http.StatusBadRequest)
 		return
 	}
 
 	if r.Header.Get("Content-Type") != "text/plain" {
-		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, "invalid Content-Type: expected text/plain", http.StatusBadRequest)
 		return
 	}
 
@@ -29,21 +30,18 @@ func PostMetrics(w http.ResponseWriter, r *http.Request) {
 	metricValue := requestComponents["metricValue"]
 
 	if _, found := validMetricTypes[metricType]; !found {
-		log.Printf("Invalid metric type: %s", metricType)
-		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, "invalid metric type: "+metricTypeStr, http.StatusBadRequest)
 		return
 	}
 
 	log.Printf("Get metrics for %s %s %s", metricType, metricName, metricValue)
 	// let's do a request sanity check
 	if metricName == "" {
-		log.Printf("Metric name is empty %s", metricName)
-		w.WriteHeader(http.StatusNotFound)
+		http.Error(w, "metric name is empty", http.StatusBadRequest)
 		return
 	}
 	if metricValue == "" {
-		log.Printf("Metric has an empty value '%s'", metricValue)
-		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, "metric value is empty", http.StatusBadRequest)
 		return
 	}
 
@@ -52,16 +50,14 @@ func PostMetrics(w http.ResponseWriter, r *http.Request) {
 
 		metricValueGauge, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
-			log.Printf("Error parsing metric value: %s", metricValue)
-			w.WriteHeader(http.StatusBadRequest)
+			http.Error(w, "invalid gauge value: "+metricValue+err.Error(), http.StatusBadRequest)
 			return
 		}
 		repository.MemStorage.SetGauge(metricName, metricValueGauge)
 	case Counter:
 		metricValueCounter, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
-			log.Printf("Error parsing metric value: %s", metricValue)
-			w.WriteHeader(http.StatusBadRequest)
+			http.Error(w, "invalid counter value: "+metricValue+err.Error(), http.StatusBadRequest)
 			return
 		}
 		repository.MemStorage.IncrementCounter(metricName, metricValueCounter)
