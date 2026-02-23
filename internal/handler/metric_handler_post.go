@@ -9,16 +9,21 @@ import (
 	"github.com/gorilla/mux"
 )
 
+func writeBadRequest(w http.ResponseWriter, msg string) {
+	log.Println(msg)
+	http.Error(w, msg, http.StatusBadRequest)
+}
+
 func PostMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
+		log.Println("Only POST method is allowed")
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		http.Error(w, "invalid method, expected post", http.StatusBadRequest)
 		return
 	}
 
 	if r.Header.Get("Content-Type") != "text/plain" {
-		http.Error(w, "invalid Content-Type: expected text/plain", http.StatusBadRequest)
+		writeBadRequest(w, "invalid Content-Type: expected text/plain")
 		return
 	}
 
@@ -30,18 +35,18 @@ func PostMetrics(w http.ResponseWriter, r *http.Request) {
 	metricValue := requestComponents["metricValue"]
 
 	if _, found := validMetricTypes[metricType]; !found {
-		http.Error(w, "invalid metric type: "+metricTypeStr, http.StatusBadRequest)
+		writeBadRequest(w, "invalid metric type: "+metricTypeStr)
 		return
 	}
 
-	log.Printf("Get metrics for %s %s %s", metricType, metricName, metricValue)
+	log.Printf("Post metrics for %s %s %s", metricType, metricName, metricValue)
 	// let's do a request sanity check
 	if metricName == "" {
-		http.Error(w, "metric name is empty", http.StatusBadRequest)
+		writeBadRequest(w, "metric name is empty")
 		return
 	}
 	if metricValue == "" {
-		http.Error(w, "metric value is empty", http.StatusBadRequest)
+		writeBadRequest(w, "metric value is empty")
 		return
 	}
 
@@ -50,14 +55,14 @@ func PostMetrics(w http.ResponseWriter, r *http.Request) {
 
 		metricValueGauge, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
-			http.Error(w, "invalid gauge value: "+metricValue+err.Error(), http.StatusBadRequest)
+			writeBadRequest(w, "invalid gauge value: "+metricValue+err.Error())
 			return
 		}
 		repository.MemStorage.SetGauge(metricName, metricValueGauge)
 	case Counter:
 		metricValueCounter, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
-			http.Error(w, "invalid counter value: "+metricValue+err.Error(), http.StatusBadRequest)
+			writeBadRequest(w, "invalid counter value: "+metricValue+err.Error())
 			return
 		}
 		repository.MemStorage.IncrementCounter(metricName, metricValueCounter)
