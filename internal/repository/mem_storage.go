@@ -1,4 +1,4 @@
-package main
+package repository
 
 import (
 	"sync"
@@ -8,7 +8,7 @@ type MemStorage struct {
 	counter int64
 	gauge   float64
 
-	mutex sync.Mutex
+	mutex sync.RWMutex
 }
 
 func NewMemStorage() *MemStorage {
@@ -17,12 +17,24 @@ func NewMemStorage() *MemStorage {
 
 func (s *MemStorage) IncrementCounter(number int64) {
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	s.counter += number
-	s.mutex.Unlock()
 }
 
 func (s *MemStorage) SetGauge(gauge float64) {
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	s.gauge = gauge
-	s.mutex.Unlock()
+}
+
+func (s *MemStorage) GetGauge() float64 {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.gauge
+}
+
+func (s *MemStorage) GetCounter() int64 {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.counter
 }

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 	"github.com/gorilla/mux"
 )
 
@@ -17,7 +18,7 @@ const (
 )
 
 var validMetricTypes = map[MetricType]struct{}{Gauge: {}, Counter: {}}
-var memStorage = NewMemStorage()
+var memStorage = repository.NewMemStorage()
 
 func getMetrics(w http.ResponseWriter, r *http.Request) {
 	if "text/plain" != r.Header.Get("Content-Type") {
