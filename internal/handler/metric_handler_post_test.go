@@ -115,12 +115,13 @@ func TestGetMetrics(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			memStorage = repository.NewMemStorage()
 
 			req := newReqWithVars(t, http.MethodPost, tt.vars, tt.contentType)
 			rr := httptest.NewRecorder()
 
-			GetMetrics(rr, req)
+			metricName := tt.vars["metricName"]
+
+			PostMetrics(rr, req)
 
 			assert.Equal(t, tt.wantStatus, rr.Code)
 
@@ -130,11 +131,15 @@ func TestGetMetrics(t *testing.T) {
 				case string(Gauge):
 					metricValue, err := strconv.ParseFloat(expectedMetricValueStr, 64)
 					require.NoError(t, err)
-					assert.InDelta(t, metricValue, memStorage.GetGauge(), 1e-9)
+					val, err := repository.MemStorage.GetGauge(metricName)
+					require.NoError(t, err)
+					assert.InDelta(t, metricValue, val, 1e-9)
 				case string(Counter):
 					metricValue, err := strconv.ParseInt(expectedMetricValueStr, 10, 64)
 					require.NoError(t, err)
-					assert.EqualValues(t, metricValue, memStorage.GetCounter())
+					val, err := repository.MemStorage.GetCounter(metricName)
+					require.NoError(t, err)
+					assert.EqualValues(t, metricValue, val, 1e-9)
 				}
 			}
 		})

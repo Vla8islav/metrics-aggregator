@@ -1,40 +1,55 @@
 package repository
 
 import (
+	"fmt"
 	"sync"
 )
 
-type MemStorage struct {
-	counter int64
-	gauge   float64
+var MemStorage = NewMemStorage()
+
+type MemoryStorage struct {
+	namedCounter map[string]int64
+	namedGauge   map[string]float64
 
 	mutex sync.RWMutex
 }
 
-func NewMemStorage() *MemStorage {
-	return &MemStorage{counter: 0, gauge: 0}
+func NewMemStorage() *MemoryStorage {
+	return &MemoryStorage{namedGauge: make(map[string]float64), namedCounter: make(map[string]int64)}
 }
 
-func (s *MemStorage) IncrementCounter(number int64) {
+func (s *MemoryStorage) IncrementCounter(name string, number int64) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.counter += number
+	if _, ok := s.namedCounter[name]; ok {
+		s.namedCounter[name] = s.namedCounter[name] + number
+	} else {
+		s.namedCounter[name] = number
+	}
 }
 
-func (s *MemStorage) SetGauge(gauge float64) {
+func (s *MemoryStorage) SetGauge(name string, gauge float64) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.gauge = gauge
+	s.namedGauge[name] = gauge
 }
 
-func (s *MemStorage) GetGauge() float64 {
+func (s *MemoryStorage) GetGauge(name string) (float64, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	return s.gauge
+	value, ok := s.namedGauge[name]
+	if !ok {
+		return 0.0, fmt.Errorf("gauge not found %s", name)
+	}
+	return value, nil
 }
 
-func (s *MemStorage) GetCounter() int64 {
+func (s *MemoryStorage) GetCounter(name string) (int64, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	return s.counter
+	value, ok := s.namedCounter[name]
+	if !ok {
+		return 0, fmt.Errorf("counter not found %s", name)
+	}
+	return value, nil
 }

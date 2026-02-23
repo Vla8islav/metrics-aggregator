@@ -6,17 +6,25 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+const defaultCounterName = "count"
+const defaultGaugeName = "gauge"
 
 func TestMemStorageIncrementCounter(t *testing.T) {
 	t.Parallel()
 	s := NewMemStorage()
 
-	s.IncrementCounter(5)
-	assert.EqualValues(t, 5, s.GetCounter())
+	s.IncrementCounter(defaultCounterName, 5)
+	counter, err := s.GetCounter(defaultCounterName)
+	require.NoError(t, err)
+	assert.EqualValues(t, 5, counter)
 
-	s.IncrementCounter(3)
-	assert.EqualValues(t, 8, s.GetCounter())
+	s.IncrementCounter(defaultCounterName, 3)
+	counter, err = s.GetCounter(defaultCounterName)
+	require.NoError(t, err)
+	assert.EqualValues(t, 8, counter)
 
 }
 
@@ -25,11 +33,15 @@ func TestMemStorageSetGauge(t *testing.T) {
 	s := NewMemStorage()
 	delta := 0.000001
 
-	s.SetGauge(42.5)
-	assert.InDelta(t, 42.5, s.GetGauge(), delta)
+	s.SetGauge(defaultGaugeName, 42.5)
+	gauge, err := s.GetGauge(defaultGaugeName)
+	require.NoError(t, err)
+	assert.InDelta(t, 42.5, gauge, delta)
 
-	s.SetGauge(-12.5)
-	assert.InDelta(t, -12.5, s.GetGauge(), delta)
+	s.SetGauge(defaultGaugeName, -12.5)
+	gauge, err = s.GetGauge(defaultGaugeName)
+	require.NoError(t, err)
+	assert.InDelta(t, -12.5, gauge, delta)
 }
 
 func TestMemStorageConcurrentAccessCounter(t *testing.T) {
@@ -45,7 +57,7 @@ func TestMemStorageConcurrentAccessCounter(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < incrementsPerWorker; j++ {
-				s.IncrementCounter(incrementStep)
+				s.IncrementCounter(defaultCounterName, incrementStep)
 			}
 		}()
 	}
@@ -53,7 +65,9 @@ func TestMemStorageConcurrentAccessCounter(t *testing.T) {
 
 	expectedResult := int64(workers*incrementsPerWorker) * incrementStep
 
-	assert.Equal(t, expectedResult, s.GetCounter())
+	value, err := s.GetCounter(defaultCounterName)
+	require.NoError(t, err)
+	assert.Equal(t, expectedResult, value)
 
 }
 
@@ -76,13 +90,14 @@ func TestMemStorageConcurrentAccessGauge(t *testing.T) {
 
 		go func(val float64) {
 			defer wg.Done()
-			s.SetGauge(val)
+			s.SetGauge(defaultGaugeName, val)
 		}(v)
 	}
 
 	wg.Wait()
 
-	finalValue := s.GetGauge()
+	finalValue, err := s.GetGauge(defaultGaugeName)
+	require.NoError(t, err)
 
 	_, got := values[finalValue]
 

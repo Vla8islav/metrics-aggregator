@@ -18,7 +18,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	log.Printf("agent started: poll=%s report=%s server=%s", pollInterval, reportInterval, serverAddr)
+	log.Printf("agent started: metric_poll=%s report=%s server=%s", pollInterval, reportInterval, serverAddr)
 	ag.Start(ctx)
 
 }

@@ -9,17 +9,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type MetricType string
+func PostMetrics(w http.ResponseWriter, r *http.Request) {
 
-const (
-	Gauge   MetricType = "gauge"
-	Counter MetricType = "counter"
-)
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 
-var validMetricTypes = map[MetricType]struct{}{Gauge: {}, Counter: {}}
-var memStorage = repository.NewMemStorage()
-
-func GetMetrics(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") != "text/plain" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -60,7 +56,7 @@ func GetMetrics(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		memStorage.SetGauge(metricValueGauge)
+		repository.MemStorage.SetGauge(metricName, metricValueGauge)
 	case Counter:
 		metricValueCounter, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
@@ -68,8 +64,7 @@ func GetMetrics(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		memStorage.IncrementCounter(metricValueCounter)
+		repository.MemStorage.IncrementCounter(metricName, metricValueCounter)
 	}
 	w.WriteHeader(http.StatusOK)
-
 }
