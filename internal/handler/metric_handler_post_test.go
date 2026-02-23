@@ -34,28 +34,28 @@ func TestPostMetrics(t *testing.T) {
 	}{
 		{
 			name: "gauge ok", vars: map[string]string{
-				"metricType":  string(Gauge),
-				"metricName":  defaultMetricName,
-				"metricValue": "1.124",
-			},
+			"metricType":  string(Gauge),
+			"metricName":  defaultMetricName,
+			"metricValue": "1.124",
+		},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
 		},
 		{
 			name: "counter ok", vars: map[string]string{
-				"metricType":  string(Counter),
-				"metricName":  defaultMetricName,
-				"metricValue": "1",
-			},
+			"metricType":  string(Counter),
+			"metricName":  defaultMetricName,
+			"metricValue": "1",
+		},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
 		},
 		{
 			name: "bad content type", vars: map[string]string{
-				"metricType":  string(Gauge),
-				"metricName":  defaultMetricName,
-				"metricValue": "1.488",
-			},
+			"metricType":  string(Gauge),
+			"metricName":  defaultMetricName,
+			"metricValue": "1.488",
+		},
 			contentType: "application/json",
 			wantStatus:  http.StatusBadRequest,
 		},
@@ -78,7 +78,7 @@ func TestPostMetrics(t *testing.T) {
 				"metricValue": "1.23",
 			},
 			contentType: "text/plain",
-			wantStatus:  http.StatusNotFound,
+			wantStatus:  http.StatusBadRequest,
 		},
 		{
 			name: "empty metric value",
