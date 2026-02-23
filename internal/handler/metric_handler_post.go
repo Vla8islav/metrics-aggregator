@@ -22,11 +22,6 @@ func PostMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get("Content-Type") != "text/plain" {
-		writeBadRequest(w, "invalid Content-Type: expected text/plain")
-		return
-	}
-
 	requestComponents := mux.Vars(r)
 
 	metricTypeStr := requestComponents["metricType"]
