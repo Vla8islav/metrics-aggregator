@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
+	"github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
 type Agent struct {
@@ -16,11 +17,11 @@ type Agent struct {
 	pollInterval   time.Duration
 	reportInterval time.Duration
 
-	gauges *Stats
+	gauges *models.Stats
 }
 
 func NewAgent(serverAddr string, pollInterval, reportInterval time.Duration) *Agent {
-	s := NewStats()
+	s := models.NewStats()
 	return &Agent{
 		client: &http.Client{
 			Timeout: 5 * time.Second,

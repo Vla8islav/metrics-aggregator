@@ -14,7 +14,7 @@ func writeBadRequest(w http.ResponseWriter, msg string) {
 	http.Error(w, msg, http.StatusBadRequest)
 }
 
-func PostMetrics(w http.ResponseWriter, r *http.Request) {
+func SetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
 		log.Println("Only POST method is allowed")

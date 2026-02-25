@@ -13,7 +13,7 @@ func main() {
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/update/{metricType}/{metricName}/{metricValue}", handler.PostMetrics)
+	r.HandleFunc("/update/{metricType}/{metricName}/{metricValue}", handler.SetMetrics)
 	r.HandleFunc("/value/{metricType}/{metricName}", handler.GetMetrics)
 
 	srv := &http.Server{Addr: ":8080", Handler: r, ReadTimeout: 5 * time.Second}
