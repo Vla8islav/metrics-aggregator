@@ -1,75 +1,38 @@
 package handler
 
 import (
-	"errors"
+	"fmt"
 	"log"
 	"net/http"
-	"strconv"
-
-	"github.com/Vla8islav/metrics-aggregator/internal/repository"
-	"github.com/gorilla/mux"
 )
 
 func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
-
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	requestComponents := mux.Vars(r)
-
-	metricTypeStr := requestComponents["metricType"]
-	metricType := MetricType(metricTypeStr)
-	metricName := requestComponents["metricName"]
-
-	if _, found := validMetricTypes[metricType]; !found {
-		log.Printf("Invalid metric type: %s", metricType)
-		w.WriteHeader(http.StatusBadRequest)
+	metricsExport, err := h.repo.GetAll()
+	if err != nil {
+		log.Printf("Error getting all metrics: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("Get metrics for %s %s", metricType, metricName)
-	// let's do a request sanity check
-	if metricName == "" {
-		log.Printf("Metric name is empty %s", metricName)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	switch metricType {
-	case Gauge:
-
-		gauge, err := h.repo.GetGauge(metricName)
-		if errors.Is(err, repository.ErrNotFound) {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		} else if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		gaugeStr := strconv.FormatFloat(gauge, 'f', -1, 64)
-		_, err = w.Write([]byte(gaugeStr))
+	_, err = w.Write([]byte("<HTML>"))
+	for k, v := range metricsExport.Gauges {
+		_, err = w.Write([]byte(fmt.Sprintf("%s %f </br>", k, v)))
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-	case Counter:
-		counter, err := h.repo.GetCounter(metricName)
-		if errors.Is(err, repository.ErrNotFound) {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		} else if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		counterStr := strconv.FormatInt(counter, 10)
-		_, err = w.Write([]byte(counterStr))
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
+
+	for k, v := range metricsExport.Counters {
+		_, err = w.Write([]byte(fmt.Sprintf("%s %d </br>", k, v)))
+		if err != nil {
+			return
+		}
+	}
+	_, err = w.Write([]byte("</HTML>"))
+
 }

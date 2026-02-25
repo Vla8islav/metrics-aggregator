@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
 type MemoryStorage struct {
@@ -17,29 +19,24 @@ func NewMemStorage() *MemoryStorage {
 	return &MemoryStorage{namedGauge: make(map[string]float64), namedCounter: make(map[string]int64)}
 }
 
-type MetricsExport struct {
-	Counters map[string]int64
-	Gauges   map[string]float64
-}
-
-func (s *MemoryStorage) GetAll() MetricsExport {
+func (s *MemoryStorage) GetAll() (models.MetricsExport, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	counters := make(map[string]int64, len(s.namedCounter))
+	counters := make(map[string]int64)
 	for k, v := range s.namedCounter {
 		counters[k] = v
 	}
 
-	gauges := make(map[string]float64, len(s.namedGauge))
+	gauges := make(map[string]float64)
 	for k, v := range s.namedGauge {
 		gauges[k] = v
 	}
 
-	return MetricsExport{
+	return models.MetricsExport{
 		Counters: counters,
 		Gauges:   gauges,
-	}
+	}, nil
 
 }
 
