@@ -17,6 +17,32 @@ func NewMemStorage() *MemoryStorage {
 	return &MemoryStorage{namedGauge: make(map[string]float64), namedCounter: make(map[string]int64)}
 }
 
+type MetricsExport struct {
+	Counters map[string]int64
+	Gauges   map[string]float64
+}
+
+func (s *MemoryStorage) GetAll() MetricsExport {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	counters := make(map[string]int64, len(s.namedCounter))
+	for k, v := range s.namedCounter {
+		counters[k] = v
+	}
+
+	gauges := make(map[string]float64, len(s.namedGauge))
+	for k, v := range s.namedGauge {
+		gauges[k] = v
+	}
+
+	return MetricsExport{
+		Counters: counters,
+		Gauges:   gauges,
+	}
+
+}
+
 func (s *MemoryStorage) IncrementCounter(name string, number int64) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
