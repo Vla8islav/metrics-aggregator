@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 	"github.com/gorilla/mux"
 )
 
@@ -14,7 +13,7 @@ func writeBadRequest(w http.ResponseWriter, msg string) {
 	http.Error(w, msg, http.StatusBadRequest)
 }
 
-func SetMetrics(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
 		log.Println("Only POST method is allowed")
@@ -53,14 +52,14 @@ func SetMetrics(w http.ResponseWriter, r *http.Request) {
 			writeBadRequest(w, "invalid gauge value: "+metricValue+err.Error())
 			return
 		}
-		repository.MemStorage.SetGauge(metricName, metricValueGauge)
+		h.repo.SetGauge(metricName, metricValueGauge)
 	case Counter:
 		metricValueCounter, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			writeBadRequest(w, "invalid counter value: "+metricValue+err.Error())
 			return
 		}
-		repository.MemStorage.IncrementCounter(metricName, metricValueCounter)
+		h.repo.IncrementCounter(metricName, metricValueCounter)
 	}
 	w.WriteHeader(http.StatusOK)
 }

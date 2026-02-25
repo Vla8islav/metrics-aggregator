@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newReqWithVars(t *testing.T, method string, vars map[string]string, contentType string) *http.Request {
+func newReqWithVars(t *testing.T, target string, method string, vars map[string]string, contentType string) *http.Request {
 	t.Helper()
 	//
-	req := httptest.NewRequest(method, "http://sample.ru/update/", nil)
+	req := httptest.NewRequest(method, target, nil)
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
@@ -106,12 +106,14 @@ func TestPostMetrics(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 
-			req := newReqWithVars(t, http.MethodPost, tt.vars, tt.contentType)
+			req := newReqWithVars(t, "http://sample.ru/update/", http.MethodPost, tt.vars, tt.contentType)
 			rr := httptest.NewRecorder()
 
 			metricName := tt.vars["metricName"]
 
-			SetMetrics(rr, req)
+			db := repository.NewMemStorage()
+			h := NewHandler(db)
+			h.SetMetrics(rr, req)
 
 			assert.Equal(t, tt.wantStatus, rr.Code)
 
@@ -121,13 +123,13 @@ func TestPostMetrics(t *testing.T) {
 				case string(Gauge):
 					metricValue, err := strconv.ParseFloat(expectedMetricValueStr, 64)
 					require.NoError(t, err)
-					val, err := repository.MemStorage.GetGauge(metricName)
+					val, err := h.repo.GetGauge(metricName)
 					require.NoError(t, err)
 					assert.InDelta(t, metricValue, val, 1e-9)
 				case string(Counter):
 					metricValue, err := strconv.ParseInt(expectedMetricValueStr, 10, 64)
 					require.NoError(t, err)
-					val, err := repository.MemStorage.GetCounter(metricName)
+					val, err := h.repo.GetCounter(metricName)
 					require.NoError(t, err)
 					assert.EqualValues(t, metricValue, val, 1e-9)
 				}

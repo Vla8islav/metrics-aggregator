@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -40,7 +40,7 @@ func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	switch metricType {
 	case Gauge:
 
-		gauge, err := repository.MemStorage.GetGauge(metricName)
+		gauge, err := h.repo.GetGauge(metricName)
 		if errors.Is(err, repository.ErrNotFound) {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -57,7 +57,7 @@ func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case Counter:
-		counter, err := repository.MemStorage.GetCounter(metricName)
+		counter, err := h.repo.GetCounter(metricName)
 		if errors.Is(err, repository.ErrNotFound) {
 			w.WriteHeader(http.StatusNotFound)
 			return

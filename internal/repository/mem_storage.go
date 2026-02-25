@@ -6,8 +6,6 @@ import (
 	"sync"
 )
 
-var MemStorage = NewMemStorage()
-
 type MemoryStorage struct {
 	namedCounter map[string]int64
 	namedGauge   map[string]float64
