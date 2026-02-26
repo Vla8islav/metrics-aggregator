@@ -19,7 +19,11 @@ func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Laziest HTML page ever
 	_, err = w.Write([]byte("<HTML>"))
+	if err != nil {
+		log.Printf("error opening the HTML tag: %s", err.Error())
+	}
 	for k, v := range metricsExport.Gauges {
 		_, err = w.Write([]byte(fmt.Sprintf("%s %f </br>", k, v)))
 		if err != nil {
@@ -34,5 +38,8 @@ func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_, err = w.Write([]byte("</HTML>"))
+	if err != nil {
+		log.Printf("error closing the HTML tag: %s", err.Error())
+	}
 
 }
