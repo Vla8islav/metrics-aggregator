@@ -3,15 +3,15 @@ package main
 import (
 	"context"
 	"log"
-	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/agent"
+	"github.com/Vla8islav/metrics-aggregator/internal/config"
 )
 
 func main() {
-	serverAddr := "http://localhost:8080"
-	pollInterval := 2 * time.Second
-	reportInterval := 10 * time.Second
+	serverAddr := "http://" + config.ReadFlags().ServerAddress
+	pollInterval := config.ReadFlags().PollInterval
+	reportInterval := config.ReadFlags().ReportInterval
 
 	ag := agent.NewAgent(serverAddr, pollInterval, reportInterval)
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 	"github.com/Vla8islav/metrics-aggregator/internal/router"
@@ -16,7 +17,7 @@ func main() {
 	h := handler.NewHandler(db)
 	r := router.NewRouter(h)
 
-	srv := &http.Server{Addr: ":8080", Handler: r, ReadTimeout: 5 * time.Second}
+	srv := &http.Server{Addr: config.ReadFlags().ServerAddress, Handler: r, ReadTimeout: 5 * time.Second}
 
 	err := srv.ListenAndServe()
 	if err != nil {
