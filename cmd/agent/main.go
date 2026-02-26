@@ -10,8 +10,8 @@ import (
 
 func main() {
 	serverAddr := "http://" + config.ReadFlags().ServerAddress
-	pollInterval := config.ReadFlags().PollInterval
-	reportInterval := config.ReadFlags().ReportInterval
+	pollInterval := config.ReadFlags().PollInterval.Duration
+	reportInterval := config.ReadFlags().ReportInterval.Duration
 
 	ag := agent.NewAgent(serverAddr, pollInterval, reportInterval)
 
