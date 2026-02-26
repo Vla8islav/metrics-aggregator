@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"github.com/Vla8islav/metrics-aggregator/internal/domain_model"
+	"github.com/Vla8islav/metrics-aggregator/internal/domain"
 )
 
 type Handler struct {
-	repo domain_model.MetricRepository
+	repo domain.MetricRepository
 }
 
-func NewHandler(repository domain_model.MetricRepository) *Handler {
+func NewHandler(repository domain.MetricRepository) *Handler {
 	return &Handler{repo: repository}
 }

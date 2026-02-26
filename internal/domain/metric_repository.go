@@ -1,4 +1,4 @@
-package domain_model
+package domain
 
 import models "github.com/Vla8islav/metrics-aggregator/internal/model"
 
