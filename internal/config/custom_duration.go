@@ -1,0 +1,38 @@
+package config
+
+import (
+	"fmt"
+	"strconv"
+	"time"
+)
+
+type CustomSecondsDuration struct {
+	time.Duration
+}
+
+func (d *CustomSecondsDuration) String() string {
+	return d.Duration.String()
+}
+
+func absInt(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func (d *CustomSecondsDuration) Set(value string) error {
+	if dur, err := time.ParseDuration(value); err == nil {
+		d.Duration = dur
+		return nil
+	}
+
+	// if parsing fails, trying to parse it as an integer
+	seconds, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("invalid duration: %s", value)
+	}
+	// assume that this value is in seconds
+	d.Duration = time.Duration(absInt(seconds)) * time.Second
+	return nil
+}

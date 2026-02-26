@@ -9,9 +9,9 @@ import (
 )
 
 type Options struct {
-	ServerAddress  string        `env:"SERVER_ADDRESS"`
-	PollInterval   time.Duration `env:"POLL_INTERVAL"`
-	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
+	ServerAddress  string                `env:"SERVER_ADDRESS"`
+	PollInterval   CustomSecondsDuration `env:"POLL_INTERVAL"`
+	ReportInterval CustomSecondsDuration `env:"REPORT_INTERVAL"`
 }
 
 var optionsInstance *Options
@@ -36,11 +36,11 @@ func mergeOptions(mergeInto *Options, newValues Options) {
 		mergeInto.ServerAddress = newValues.ServerAddress
 	}
 
-	if mergeInto.PollInterval == 0 && newValues.PollInterval != 0 {
+	if mergeInto.PollInterval.Duration == 0 && newValues.PollInterval.Duration != 0 {
 		mergeInto.PollInterval = newValues.PollInterval
 	}
 
-	if mergeInto.ReportInterval == 0 && newValues.ReportInterval != 0 {
+	if mergeInto.ReportInterval.Duration == 0 && newValues.ReportInterval.Duration != 0 {
 		mergeInto.ReportInterval = newValues.ReportInterval
 	}
 }
@@ -55,10 +55,13 @@ func getEnvOptions() Options {
 }
 
 func getCmdOptions() Options {
-	opt := Options{}
+	opt := Options{
+		ReportInterval: CustomSecondsDuration{10 * time.Second},
+		PollInterval:   CustomSecondsDuration{2 * time.Second},
+	}
 	flag.StringVar(&opt.ServerAddress, "a", "localhost:8080", "port on which the server should run")
-	flag.DurationVar(&opt.ReportInterval, "r", 10*time.Second, "how often console utility should send metrics")
-	flag.DurationVar(&opt.PollInterval, "p", 2*time.Second, "how often console utility should poll metrics")
+	flag.Var(&opt.ReportInterval, "r", "how often console utility should send metrics")
+	flag.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")
 	flag.Parse()
 	return opt
 }
