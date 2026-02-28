@@ -12,7 +12,7 @@ type MemoryStorage struct {
 	namedCounter map[string]int64
 	namedGauge   map[string]float64
 
-	mutex sync.RWMutex
+	mu sync.RWMutex
 }
 
 func NewMemStorage() *MemoryStorage {
@@ -20,8 +20,8 @@ func NewMemStorage() *MemoryStorage {
 }
 
 func (s *MemoryStorage) GetAll() (models.MetricsExport, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	counters := make(map[string]int64)
 	for k, v := range s.namedCounter {
@@ -41,8 +41,8 @@ func (s *MemoryStorage) GetAll() (models.MetricsExport, error) {
 }
 
 func (s *MemoryStorage) IncrementCounter(name string, number int64) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if _, ok := s.namedCounter[name]; ok {
 		s.namedCounter[name] = s.namedCounter[name] + number
 	} else {
@@ -51,16 +51,16 @@ func (s *MemoryStorage) IncrementCounter(name string, number int64) {
 }
 
 func (s *MemoryStorage) SetGauge(name string, gauge float64) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.namedGauge[name] = gauge
 }
 
 var ErrNotFound = errors.New("not found")
 
 func (s *MemoryStorage) GetGauge(name string) (float64, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	value, ok := s.namedGauge[name]
 	if !ok {
 		return 0.0, fmt.Errorf("%w: %s", ErrNotFound, name)
@@ -69,8 +69,8 @@ func (s *MemoryStorage) GetGauge(name string) (float64, error) {
 }
 
 func (s *MemoryStorage) GetCounter(name string) (int64, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	value, ok := s.namedCounter[name]
 	if !ok {
 		return 0, fmt.Errorf("%w: %s", ErrNotFound, name)
