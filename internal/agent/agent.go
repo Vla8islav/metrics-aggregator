@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 	"time"
@@ -89,9 +90,20 @@ func (a *Agent) report(ctx context.Context) error {
 
 func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricName, metricValue string) error {
 	// POST http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
-	url := path.Join(a.serverAddr, "update", string(metricType), metricName, metricValue)
+	base, err := url.Parse(a.serverAddr)
+	if err != nil {
+		return err
+	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, http.NoBody)
+	base.Path = path.Join(
+		base.Path,
+		"update",
+		string(metricType),
+		metricName,
+		metricValue,
+	)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), http.NoBody)
 	if err != nil {
 		return err
 	}
