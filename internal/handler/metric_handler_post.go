@@ -52,14 +52,25 @@ func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 			writeBadRequest(w, "invalid gauge value: "+metricValue+err.Error())
 			return
 		}
-		h.repo.SetGauge(metricName, metricValueGauge)
+		err = h.repo.SetGauge(r.Context(), metricName, metricValueGauge)
+		if err != nil {
+			log.Println("error when setting gauge: ", err, metricName, metricValue)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	case Counter:
 		metricValueCounter, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			writeBadRequest(w, "invalid counter value: "+metricValue+err.Error())
 			return
 		}
-		h.repo.IncrementCounter(metricName, metricValueCounter)
+		err = h.repo.IncrementCounter(r.Context(), metricName, metricValueCounter)
+		if err != nil {
+			log.Println("error when setting gauge: ", err, metricName, metricValue)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+
+		}
 	}
 	w.WriteHeader(http.StatusOK)
 }

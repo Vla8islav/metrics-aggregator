@@ -12,7 +12,7 @@ func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metricsExport, err := h.repo.GetAll()
+	metricsExport, err := h.repo.GetAll(r.Context())
 	if err != nil {
 		log.Printf("Error getting all metrics: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)

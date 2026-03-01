@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -23,6 +24,7 @@ func newReqWithVars(t *testing.T, target string, method string, vars map[string]
 }
 
 func TestPostMetrics(t *testing.T) {
+	ctx := context.Background()
 	t.Parallel()
 	const defaultMetricName = "someMetricName"
 
@@ -123,13 +125,13 @@ func TestPostMetrics(t *testing.T) {
 				case string(Gauge):
 					metricValue, err := strconv.ParseFloat(expectedMetricValueStr, 64)
 					require.NoError(t, err)
-					val, err := h.repo.GetGauge(metricName)
+					val, err := h.repo.GetGauge(ctx, metricName)
 					require.NoError(t, err)
 					assert.InDelta(t, metricValue, val, 1e-9)
 				case string(Counter):
 					metricValue, err := strconv.ParseInt(expectedMetricValueStr, 10, 64)
 					require.NoError(t, err)
-					val, err := h.repo.GetCounter(metricName)
+					val, err := h.repo.GetCounter(ctx, metricName)
 					require.NoError(t, err)
 					assert.EqualValues(t, metricValue, val, 1e-9)
 				}

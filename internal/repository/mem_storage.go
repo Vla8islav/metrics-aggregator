@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -19,7 +20,12 @@ func NewMemStorage() *MemoryStorage {
 	return &MemoryStorage{namedGauge: make(map[string]float64), namedCounter: make(map[string]int64)}
 }
 
-func (s *MemoryStorage) GetAll() (models.MetricsExport, error) {
+func (s *MemoryStorage) GetAll(ctx context.Context) (models.MetricsExport, error) {
+	select {
+	case <-ctx.Done():
+		return models.MetricsExport{}, ctx.Err()
+	default:
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -40,7 +46,12 @@ func (s *MemoryStorage) GetAll() (models.MetricsExport, error) {
 
 }
 
-func (s *MemoryStorage) IncrementCounter(name string, number int64) {
+func (s *MemoryStorage) IncrementCounter(ctx context.Context, name string, number int64) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.namedCounter[name]; ok {
@@ -48,17 +59,29 @@ func (s *MemoryStorage) IncrementCounter(name string, number int64) {
 	} else {
 		s.namedCounter[name] = number
 	}
+	return nil
 }
 
-func (s *MemoryStorage) SetGauge(name string, gauge float64) {
+func (s *MemoryStorage) SetGauge(ctx context.Context, name string, gauge float64) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.namedGauge[name] = gauge
+	return nil
 }
 
 var ErrNotFound = errors.New("not found")
 
-func (s *MemoryStorage) GetGauge(name string) (float64, error) {
+func (s *MemoryStorage) GetGauge(ctx context.Context, name string) (float64, error) {
+	select {
+	case <-ctx.Done():
+		return 0.0, ctx.Err()
+	default:
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	value, ok := s.namedGauge[name]
@@ -68,7 +91,12 @@ func (s *MemoryStorage) GetGauge(name string) (float64, error) {
 	return value, nil
 }
 
-func (s *MemoryStorage) GetCounter(name string) (int64, error) {
+func (s *MemoryStorage) GetCounter(ctx context.Context, name string) (int64, error) {
+	select {
+	case <-ctx.Done():
+		return 0.0, ctx.Err()
+	default:
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	value, ok := s.namedCounter[name]

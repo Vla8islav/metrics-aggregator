@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"math/rand"
 	"sync"
 	"testing"
@@ -13,38 +14,45 @@ const defaultCounterName = "count"
 const defaultGaugeName = "gauge"
 
 func TestMemStorageIncrementCounter(t *testing.T) {
+	ctx := context.Background()
 	t.Parallel()
 	s := NewMemStorage()
 
-	s.IncrementCounter(defaultCounterName, 5)
-	counter, err := s.GetCounter(defaultCounterName)
+	err := s.IncrementCounter(ctx, defaultCounterName, 5)
+	require.NoError(t, err)
+	counter, err := s.GetCounter(ctx, defaultCounterName)
 	require.NoError(t, err)
 	assert.EqualValues(t, 5, counter)
 
-	s.IncrementCounter(defaultCounterName, 3)
-	counter, err = s.GetCounter(defaultCounterName)
+	err = s.IncrementCounter(ctx, defaultCounterName, 3)
+	require.NoError(t, err)
+	counter, err = s.GetCounter(ctx, defaultCounterName)
 	require.NoError(t, err)
 	assert.EqualValues(t, 8, counter)
 
 }
 
 func TestMemStorageSetGauge(t *testing.T) {
+	ctx := context.Background()
 	t.Parallel()
 	s := NewMemStorage()
 	delta := 0.000001
 
-	s.SetGauge(defaultGaugeName, 42.5)
-	gauge, err := s.GetGauge(defaultGaugeName)
+	err := s.SetGauge(ctx, defaultGaugeName, 42.5)
+	require.NoError(t, err)
+	gauge, err := s.GetGauge(ctx, defaultGaugeName)
 	require.NoError(t, err)
 	assert.InDelta(t, 42.5, gauge, delta)
 
-	s.SetGauge(defaultGaugeName, -12.5)
-	gauge, err = s.GetGauge(defaultGaugeName)
+	err = s.SetGauge(ctx, defaultGaugeName, -12.5)
+	require.NoError(t, err)
+	gauge, err = s.GetGauge(ctx, defaultGaugeName)
 	require.NoError(t, err)
 	assert.InDelta(t, -12.5, gauge, delta)
 }
 
 func TestMemStorageConcurrentAccessCounter(t *testing.T) {
+	ctx := context.Background()
 	t.Parallel()
 	s := NewMemStorage()
 	var wg sync.WaitGroup
@@ -57,7 +65,8 @@ func TestMemStorageConcurrentAccessCounter(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < incrementsPerWorker; j++ {
-				s.IncrementCounter(defaultCounterName, incrementStep)
+				err := s.IncrementCounter(ctx, defaultCounterName, incrementStep)
+				require.NoError(t, err)
 			}
 		}()
 	}
@@ -65,13 +74,14 @@ func TestMemStorageConcurrentAccessCounter(t *testing.T) {
 
 	expectedResult := int64(workers*incrementsPerWorker) * incrementStep
 
-	value, err := s.GetCounter(defaultCounterName)
+	value, err := s.GetCounter(ctx, defaultCounterName)
 	require.NoError(t, err)
 	assert.Equal(t, expectedResult, value)
 
 }
 
 func TestMemStorageConcurrentAccessGauge(t *testing.T) {
+	ctx := context.Background()
 	t.Parallel()
 	s := NewMemStorage()
 	var wg sync.WaitGroup
@@ -90,13 +100,14 @@ func TestMemStorageConcurrentAccessGauge(t *testing.T) {
 
 		go func(val float64) {
 			defer wg.Done()
-			s.SetGauge(defaultGaugeName, val)
+			err := s.SetGauge(ctx, defaultGaugeName, val)
+			require.NoError(t, err)
 		}(v)
 	}
 
 	wg.Wait()
 
-	finalValue, err := s.GetGauge(defaultGaugeName)
+	finalValue, err := s.GetGauge(ctx, defaultGaugeName)
 	require.NoError(t, err)
 
 	_, got := values[finalValue]
