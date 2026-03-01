@@ -8,14 +8,13 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
-	"github.com/Vla8islav/metrics-aggregator/internal/router"
 )
 
 func main() {
 
 	db := repository.NewMemStorage()
 	h := handler.NewHandler(db)
-	r := router.NewRouter(h)
+	r := handler.NewRouter(h)
 
 	srv := &http.Server{Addr: config.ReadFlags().ServerAddress, Handler: r, ReadTimeout: 5 * time.Second}
 
