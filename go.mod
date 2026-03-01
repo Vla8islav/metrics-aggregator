@@ -1,6 +1,6 @@
 module github.com/Vla8islav/metrics-aggregator
 
-go 1.24.0
+go 1.26
 
 require (
 	github.com/caarlos0/env/v6 v6.10.1
