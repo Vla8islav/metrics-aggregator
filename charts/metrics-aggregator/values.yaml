@@ -1,0 +1,21 @@
+image:
+  repository: ghcr.io/vla8islav/metrics-aggregator
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+replicaCount: 1
+podAnnotations: {}
+resources: {}
+
+env:
+  SERVER_ADDRESS: "0.0.0.0:8080"
+
+extraEnv: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
