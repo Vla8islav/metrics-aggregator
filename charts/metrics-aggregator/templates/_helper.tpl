@@ -1,5 +1,5 @@
 {{- define "metrics-aggregator.fullname" -}}
-...
+metrics-aggregator
 {{- end -}}
 
 {{- define "metrics-aggregator.labels" -}}
