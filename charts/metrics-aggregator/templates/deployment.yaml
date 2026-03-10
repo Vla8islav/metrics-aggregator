@@ -1,35 +1,37 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-name: {{ include "metrics-aggregator.fullname" . }}
+  name: {{ include "metrics-aggregator.fullname" . }}
 spec:
-replicas: {{ .Values.replicaCount }}
-selector:
-matchLabels:
-app.kubernetes.io/name: {{ .Chart.Name }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-template:
-metadata:
-labels:
-{{- include "metrics-aggregator.labels" . | nindent 8 }}
-spec:
-containers:
-- name: metrics-aggregator
-image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-env:
-{{- range $key, $value := .Values.env }}
-- name: {{ $key }}
-value: {{ $value | quote }}
-{{- end }}
-{{- toYaml .Values.extraEnv | nindent 12 }}
-ports:
-- containerPort: {{ .Values.service.targetPort }}
-name: http
-readinessProbe:
-httpGet:
-path: /
-port: http
-livenessProbe:
-httpGet:
-path: /
-port: http
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        {{- include "metrics-aggregator.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: metrics-aggregator
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+{{ toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http

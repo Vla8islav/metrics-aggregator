@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/vla8islav/metrics-aggregator
+  repository: cr.yandex/crpsssmuhjtqus0tfuhb/metrics-aggregator
   tag: latest
   pullPolicy: IfNotPresent
 
