@@ -1,0 +1,158 @@
+{{ if .Values.crdsAutoUpgrade.enabled }}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.crdsAutoUpgrade.names.configMap }}-script
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+data:
+  upgrade-crds.sh: |-
+{{ .Files.Get "scripts/upgrade-crds.sh" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.crdsAutoUpgrade.names.configMap }}-policies
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+data:
+  gwin.yandex.cloud_gatewaypolicies.yaml: |-
+{{ .Files.Get "crds/gwin.yandex.cloud_gatewaypolicies.yaml" | indent 4 }}
+  gwin.yandex.cloud_routepolicies.yaml: |-
+{{ .Files.Get "crds/gwin.yandex.cloud_routepolicies.yaml" | indent 4 }}
+  gwin.yandex.cloud_servicepolicies.yaml: |-
+{{ .Files.Get "crds/gwin.yandex.cloud_servicepolicies.yaml" | indent 4 }}
+  gwin.yandex.cloud_ingresspolicies.yaml: |-
+{{ .Files.Get "crds/gwin.yandex.cloud_ingresspolicies.yaml" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.crdsAutoUpgrade.names.configMap }}-resources
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+data:
+  gateway-api.yaml: |-
+{{ .Files.Get "crds/gateway-api.yaml" | indent 4 }}
+  gwin.yandex.cloud_yccertificates.yaml: |-
+{{ .Files.Get "crds/gwin.yandex.cloud_yccertificates.yaml" | indent 4 }}
+  gwin.yandex.cloud_ycstoragebuckets.yaml: |-
+{{ .Files.Get "crds/gwin.yandex.cloud_ycstoragebuckets.yaml" | indent 4 }}
+  gwin.yandex.cloud_ingressbackendgroups.yaml: |-
+{{ .Files.Get "crds/gwin.yandex.cloud_ingressbackendgroups.yaml" | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.crdsAutoUpgrade.names.job }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      {{- if .Values.crdsAutoUpgrade.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.crdsAutoUpgrade.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.crdsAutoUpgrade.tolerations }}
+      tolerations:
+        {{- toYaml .Values.crdsAutoUpgrade.tolerations | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ .Values.crdsAutoUpgrade.names.serviceAccount }}
+      securityContext:
+        {{- include "gwin.crdsAutoUpgrade.podSecurityContext" . | nindent 8 }}
+      imagePullSecrets:
+        {{- include "gwin.crdsAutoUpgrade.image.pullSecrets" . | nindent 8 }}
+      containers:
+        - name: {{ .Values.crdsAutoUpgrade.names.job }}
+          securityContext:
+            {{- include "gwin.crdsAutoUpgrade.containerSecurityContext" . | nindent 12 }}
+          image: "{{ .Values.crdsAutoUpgrade.image.name }}:{{ .Values.crdsAutoUpgrade.image.tag }}"
+          imagePullPolicy: {{ include "gwin.crdsAutoUpgrade.image.pullPolicy" . }}
+          command:
+            - /bin/sh
+            - -c
+            - /bin/bash /scripts/upgrade-crds.sh {{ .Release.Namespace }} {{ .Values.controller.names.deployment }}
+          volumeMounts:
+            - name: upgrade-crds-script
+              mountPath: /scripts
+            - name: upgrade-crds-policies
+              mountPath: /crds/policies
+            - name: upgrade-crds-resources
+              mountPath: /crds/resources
+      restartPolicy: Never
+      volumes:
+        - name: upgrade-crds-script
+          configMap:
+            name: {{ .Values.crdsAutoUpgrade.names.configMap }}-script
+        - name: upgrade-crds-policies
+          configMap:
+            name: {{ .Values.crdsAutoUpgrade.names.configMap }}-policies
+        - name: upgrade-crds-resources
+          configMap:
+            name: {{ .Values.crdsAutoUpgrade.names.configMap }}-resources
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.crdsAutoUpgrade.names.serviceAccount }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "-3"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.crdsAutoUpgrade.names.clusterRole }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "-3"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+- apiGroups: ["gateway.networking.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "list"]
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["*"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "deployments/scale"]
+  verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.crdsAutoUpgrade.names.clusterRoleBinding }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "-3"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.crdsAutoUpgrade.names.clusterRole }}
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.crdsAutoUpgrade.names.serviceAccount }}
+  namespace: {{ .Release.Namespace }}
+
+{{ end }}

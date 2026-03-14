@@ -1,0 +1,22 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "metrics-aggregator.fullname" . }}
+  annotations:
+    gwin.yandex.cloud/groupName: {{ .Values.ingress.groupName | quote }}
+    gwin.yandex.cloud/externalIPv4Address: {{ .Values.ingress.externalIPv4Address | quote }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "metrics-aggregator.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}

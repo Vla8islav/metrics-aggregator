@@ -4,7 +4,7 @@ image:
   pullPolicy: IfNotPresent
 
 service:
-  type: ClusterIP
+  type: NodePort
   port: 80
   targetPort: 8080
 
@@ -19,3 +19,10 @@ extraEnv: []
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+ingress:
+  enabled: true
+  className: gwin-default
+  host: metrics.overbooru.world
+  groupName: metrics-aggregator
+  externalIPv4Address: auto

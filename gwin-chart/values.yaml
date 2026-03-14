@@ -1,0 +1,211 @@
+# Required values are:
+# - controller.folderId - YC Folder to create ALB resources in
+# - Authentication method (one of the following):
+#   1. controller.ycServiceAccount.workloadIdentityFederation.serviceAccountID - for workload identity federation
+#   2. controller.ycServiceAccount.secret.value - Yandex Cloud service account key
+#   3. controller.ycServiceAccount.secret.create=false - if you provide your own secret
+
+# Global parameters
+# If corresponding parameter is set, it will override global parameter
+global:
+    image:
+        pullPolicy: IfNotPresent
+        pullSecrets: []
+    podSecurityContext:
+        runAsNonRoot: true
+        runAsUser: !!float 65534
+        runAsGroup: !!float 65534
+        seccompProfile:
+            type: RuntimeDefault
+    containerSecurityContext:
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        seccompProfile:
+            type: RuntimeDefault
+        capabilities:
+            drop:
+                - ALL
+# Controller parameters
+controller:
+    # YC Folder to create ALB resources in
+    folderId: ""
+    # Default subnets to allocate balancer in
+    # Subnets must belong to same network, and to different availability zones (not necessary all zones)
+    defaultBalancerSubnets: []
+    # Yandex Cloud API endpoint
+    ycApiEndpoint: api.cloud.yandex.net:443
+    # Created cloud resources labels parameters
+    # For example, if prefix is "gwin-" and owner is "gwin", created cloud resources will be labeled with "gwin-owner=gwin"
+    cloudLabelsPrefix: "gwin-"
+    cloudLabelsOwner: "gwin"
+    # Disable certificates resolving.
+    # It could be used if controller has no access to Yandex Certificate Manager API
+    # and your resources (Ingress, Gateway) references certificates by cloud id only.
+    disableCertificatesListing: false
+    # Extra arguments to add to controller container
+    # E.g.
+    # extraArgs:
+    #   - "--arg1=value1"
+    #   - "--arg2=value2"
+    extraArgs: []
+    # Enable debug logs
+    debugLogs: true
+    # grpcLog can be used to debug grpc
+    # E.g.
+    # grpcLog:
+    #   verbosityLevel: "99"
+    #   severityLevel: "info"
+    grpcLog:
+        verbosityLevel: ""
+        severityLevel: ""
+    # Yandex Cloud service account
+    # Cloud resources will be created with this service account
+    # Authentication method is automatically determined based on configuration:
+    # 1. If workloadIdentityFederation.serviceAccountID is set -> use workload identity federation
+    # 2. If secret.value is set -> use service account key from secret
+    # 3. If secret.create=false -> use pre-existing secret (user-provided)
+    # 4. Otherwise -> configuration error
+    ycServiceAccount:
+        # Service account key authentication
+        # Set secret.value to use this method, or set secret.create=false to use pre-existing secret
+        secret:
+            create: true
+            name: gwin-sa-key
+            key: sa-key.json
+            # sa-key.json content
+            # e.g. you can use --set-file controller.ycServiceAccount.secret.value='sa-key.json'
+            value: ""
+        # Workload Identity Federation authentication
+        # Set serviceAccountID to use this method
+        # When configured, the controller service account will receive the appropriate annotation
+        # and the controller will use the instance service account to authenticate with Yandex Cloud
+        workloadIdentityFederation:
+            # ID of the service account linked to workload identity federation, which is associated with the cluster where the controller runs
+            serviceAccountID: ""
+    names:
+        deployment: "gwin"
+        serviceAccount: "gwin"
+        clusterRole: "gwin"
+        clusterRoleBinding: "gwin"
+    labels:
+        app: "gwin"
+    image:
+        name: cr.yandex/yc-marketplace/yandex-cloud/gwin/gwin-controller1771449933327601353715866238643446577312539158109
+        tag: v1.0.10
+        # If you set pullPolicy/pullSecrets it will override global value
+        pullPolicy: null
+        pullSecrets: null
+    # Node labels for pods assignment
+    # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+    nodeSelector: {}
+    # Tolerations for pods assignment
+    # ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    tolerations: []
+    metrics:
+        port: !!float 8000
+        address: 0.0.0.0
+    # If secret.name is set, the content in corresponding secret/key will be mounted to /etc/ssl/certs/ca-certificates.crt
+    # If you already have CA secret, only secret.name and secret.key are required
+    # Otherwise, you can use `--set-file controller.customRootCa.secret.value='ca.crt'`, and create=true to create it
+    customRootCa:
+        secret:
+            create: false
+            name: ""
+            key: ""
+            value: ""
+    # If you set securityContext it will override global value
+    podSecurityContext: null
+    containerSecurityContext: null
+# Default gateway class parameters
+gatewayClass:
+    create: true
+    name: gwin-default
+# Default ingress class parameters
+ingressClass:
+    create: true
+    name: gwin-default
+# Gwin automatically upgrades gateway.networking.k8s.io/v1 and gwin.yandex.cloud crds.
+# To achieve this, it executes scripts/upgrade-crds.sh in kubectl container.
+crdsAutoUpgrade:
+    enabled: true
+    names:
+        job: "upgrade-crds"
+        serviceAccount: "upgrade-crds"
+        clusterRole: "upgrade-crds"
+        clusterRoleBinding: "upgrade-crds"
+        configMap: "upgrade-crds"
+    image:
+        name: cr.yandex/yc-marketplace/yandex-cloud/gwin/bitnami/kubectl1771449933327601353715866238643446577312539158109
+        tag: 1.31.4
+        # If you set pullPolicy/pullSecrets it will override global value
+        pullPolicy: null
+        pullSecrets: null
+    # Node labels for pods assignment
+    # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+    nodeSelector: {}
+    # Tolerations for pods assignment
+    # ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    tolerations: []
+    # If you set securityContext it will override global value
+    containerSecurityContext: null
+    podSecurityContext: null
+# Nodecheck is default healthcheck for backend groups.
+# It runs as daemonset + NodePort service, and checks if node has healthy endpoints of specific service to handle requests.
+# ALB TargetGroup updates can take up to a couple of minutes, but with nodecheck, invalid target
+# (node which has no healthy endpoints) become unhealthy soon and won't receive traffic
+#
+# You can set ALB Healthcheck parameters with nodecheck.healthcheck
+# nodecheck.service.nodePort - port, which will be used in healthcheck
+# http path will be computed for each service by controller.
+nodecheck:
+    enabled: true
+    # Node labels for pods assignment
+    # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+    nodeSelector: {}
+    # Tolerations for pods assignment
+    # ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    tolerations: []
+    image:
+        name: cr.yandex/yc-marketplace/yandex-cloud/gwin/nodecheck1771449933327601353715866238643446577312539158109
+        tag: v1.0.10
+        # If you set pullPolicy/pullSecrets it will override global value
+        pullPolicy: null
+        pullSecrets: null
+    service:
+        port: !!float 8000
+        nodePort: !!float 30501
+        ipFamilyPolicy: PreferDualStack
+    # ALB Healthcheck parameters
+    healthcheck:
+        timeout: 3s
+        interval: 3s
+        healthyThreshold: !!float 3
+        unhealthyThreshold: !!float 1
+    names:
+        daemonset: "nodecheck"
+        serviceAccount: "nodecheck"
+        service: "nodecheck"
+        clusterRole: "nodecheck"
+        clusterRoleBinding: "nodecheck"
+    labels:
+        app: "nodecheck"
+    # Update strategy for DaemonSet
+    updateStrategy:
+        type: RollingUpdate
+        rollingUpdate:
+            maxUnavailable: !!float 1
+    # Kubernetes healthcheck probes configuration
+    probes:
+        liveness:
+            initialDelaySeconds: !!float 10
+            periodSeconds: !!float 10
+            timeoutSeconds: !!float 5
+            failureThreshold: !!float 3
+        readiness:
+            initialDelaySeconds: !!float 5
+            periodSeconds: !!float 5
+            timeoutSeconds: !!float 3
+            failureThreshold: !!float 1
+    # If you set securityContext it will override global value
+    containerSecurityContext: null
+    podSecurityContext: null

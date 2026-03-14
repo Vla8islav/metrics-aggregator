@@ -1,0 +1,10 @@
+{{ if .Values.gatewayClass.create }}
+
+kind: GatewayClass
+apiVersion: gateway.networking.k8s.io/v1beta1
+metadata:
+  name: {{ .Values.gatewayClass.name }}
+spec:
+  controllerName: gwin.yandex.cloud/controller
+
+{{ end }}
