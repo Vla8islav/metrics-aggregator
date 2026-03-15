@@ -36,19 +36,19 @@ func TestPostMetrics(t *testing.T) {
 	}{
 		{
 			name: "gauge ok", vars: map[string]string{
-				"metricType":  string(Gauge),
-				"metricName":  defaultMetricName,
-				"metricValue": "1.124",
-			},
+			"metricType":  string(Gauge),
+			"metricName":  defaultMetricName,
+			"metricValue": "1.124",
+		},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
 		},
 		{
 			name: "counter ok", vars: map[string]string{
-				"metricType":  string(Counter),
-				"metricName":  defaultMetricName,
-				"metricValue": "1",
-			},
+			"metricType":  string(Counter),
+			"metricName":  defaultMetricName,
+			"metricValue": "1",
+		},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
 		},
@@ -125,13 +125,13 @@ func TestPostMetrics(t *testing.T) {
 				case string(Gauge):
 					metricValue, err := strconv.ParseFloat(expectedMetricValueStr, 64)
 					require.NoError(t, err)
-					val, err := h.repo.GetGauge(ctx, metricName)
+					val, err := h.service.GetGauge(ctx, metricName)
 					require.NoError(t, err)
 					assert.InDelta(t, metricValue, val, 1e-9)
 				case string(Counter):
 					metricValue, err := strconv.ParseInt(expectedMetricValueStr, 10, 64)
 					require.NoError(t, err)
-					val, err := h.repo.GetCounter(ctx, metricName)
+					val, err := h.service.GetCounter(ctx, metricName)
 					require.NoError(t, err)
 					assert.EqualValues(t, metricValue, val, 1e-9)
 				}

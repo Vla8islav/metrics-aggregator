@@ -5,9 +5,9 @@ import (
 )
 
 type Handler struct {
-	repo domain.MetricRepository
+	service domain.MetricService
 }
 
-func NewHandler(repository domain.MetricRepository) *Handler {
-	return &Handler{repo: repository}
+func NewHandler(service domain.MetricService) *Handler {
+	return &Handler{service: service}
 }

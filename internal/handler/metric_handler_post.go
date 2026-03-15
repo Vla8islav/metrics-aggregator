@@ -52,7 +52,7 @@ func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 			writeBadRequest(w, "invalid gauge value: "+metricValue+err.Error())
 			return
 		}
-		err = h.repo.SetGauge(r.Context(), metricName, metricValueGauge)
+		err = h.service.SetGauge(r.Context(), metricName, metricValueGauge)
 		if err != nil {
 			log.Println("error when setting gauge: ", err, metricName, metricValue)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -64,7 +64,7 @@ func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 			writeBadRequest(w, "invalid counter value: "+metricValue+err.Error())
 			return
 		}
-		err = h.repo.IncrementCounter(r.Context(), metricName, metricValueCounter)
+		err = h.service.IncrementCounter(r.Context(), metricName, metricValueCounter)
 		if err != nil {
 			log.Println("error when setting gauge: ", err, metricName, metricValue)
 			w.WriteHeader(http.StatusInternalServerError)

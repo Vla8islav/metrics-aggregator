@@ -40,7 +40,7 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	switch metricType {
 	case Gauge:
 
-		gauge, err := h.repo.GetGauge(r.Context(), metricName)
+		gauge, err := h.service.GetGauge(r.Context(), metricName)
 		if errors.Is(err, repository.ErrNotFound) {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -57,7 +57,7 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case Counter:
-		counter, err := h.repo.GetCounter(r.Context(), metricName)
+		counter, err := h.service.GetCounter(r.Context(), metricName)
 		if errors.Is(err, repository.ErrNotFound) {
 			w.WriteHeader(http.StatusNotFound)
 			return

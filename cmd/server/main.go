@@ -8,17 +8,21 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
+	"github.com/Vla8islav/metrics-aggregator/internal/service"
 )
 
 func main() {
 
 	db := repository.NewMemStorage()
-	h := handler.NewHandler(db)
+	srvApp := service.NewMetricsService(db)
+	h := handler.NewHandler(srvApp)
 	r := handler.NewRouter(h)
 
-	srv := &http.Server{Addr: config.ReadFlags().ServerAddress, Handler: r, ReadTimeout: 5 * time.Second}
+	srvImpl := &http.Server{Addr: config.ReadFlags().ServerAddress,
+		Handler:     r,
+		ReadTimeout: 5 * time.Second}
 
-	err := srv.ListenAndServe()
+	err := srvImpl.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
 		return
