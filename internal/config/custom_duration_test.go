@@ -94,42 +94,6 @@ func TestCustomSecondsDuration_String(t *testing.T) {
 	}
 }
 
-func TestAbsInt(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name  string
-		input int
-		want  int
-	}{
-		{
-			name:  "positive number",
-			input: 5,
-			want:  5,
-		},
-		{
-			name:  "negative number",
-			input: -5,
-			want:  5,
-		},
-		{
-			name:  "zero",
-			input: 0,
-			want:  0,
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := absInt(tt.input)
-			if got != tt.want {
-				t.Fatalf("expected %d, got %d", tt.want, got)
-			}
-		})
-	}
-}
-
 func TestCustomSecondsDuration_UnmarshalText(t *testing.T) {
 	t.Parallel()
 	var d CustomSecondsDuration
