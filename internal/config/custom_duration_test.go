@@ -6,6 +6,7 @@ import (
 )
 
 func TestCustomSecondsDuration_Set(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -80,6 +81,7 @@ func TestCustomSecondsDuration_Set(t *testing.T) {
 }
 
 func TestCustomSecondsDuration_String(t *testing.T) {
+	t.Parallel()
 	d := CustomSecondsDuration{Duration: 3 * time.Second}
 
 	got := d.String()
@@ -91,6 +93,7 @@ func TestCustomSecondsDuration_String(t *testing.T) {
 }
 
 func TestAbsInt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input int
@@ -124,6 +127,7 @@ func TestAbsInt(t *testing.T) {
 }
 
 func TestCustomSecondsDuration_UnmarshalText(t *testing.T) {
+	t.Parallel()
 	var d CustomSecondsDuration
 
 	err := d.UnmarshalText([]byte("15"))
