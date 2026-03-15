@@ -58,6 +58,7 @@ func TestCustomSecondsDuration_Set(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			var d CustomSecondsDuration
 
@@ -117,6 +118,7 @@ func TestAbsInt(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got := absInt(tt.input)
 			if got != tt.want {
