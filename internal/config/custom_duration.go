@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding"
 	"fmt"
 	"strconv"
 	"time"
@@ -9,6 +10,9 @@ import (
 type CustomSecondsDuration struct {
 	time.Duration
 }
+
+// a fancy go assertion because env is implicit and it's parsing is also implicit
+var _ encoding.TextUnmarshaler = (*CustomSecondsDuration)(nil)
 
 func (d *CustomSecondsDuration) String() string {
 	return d.Duration.String()
@@ -35,4 +39,8 @@ func (d *CustomSecondsDuration) Set(value string) error {
 	// assume that this value is in seconds
 	d.Duration = time.Duration(absInt(seconds)) * time.Second
 	return nil
+}
+
+func (d *CustomSecondsDuration) UnmarshalText(text []byte) error {
+	return d.Set(string(text))
 }
