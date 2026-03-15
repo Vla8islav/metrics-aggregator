@@ -9,7 +9,7 @@ import (
 )
 
 type Options struct {
-	ServerAddress  string                `env:"SERVER_ADDRESS"`
+	ServerAddress  string                `env:"ADDRESS"`
 	PollInterval   CustomSecondsDuration `env:"POLL_INTERVAL"`
 	ReportInterval CustomSecondsDuration `env:"REPORT_INTERVAL"`
 }
