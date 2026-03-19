@@ -8,11 +8,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func writeBadRequest(w http.ResponseWriter, msg string) {
-	log.Println(msg)
-	http.Error(w, msg, http.StatusBadRequest)
-}
-
 func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
