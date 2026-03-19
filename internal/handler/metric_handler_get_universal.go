@@ -57,13 +57,13 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 			Value: &val,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		responseBodySerializedJson, err := json.Marshal(responseBodySerialized)
+		responseBodySerializedJSON, err := json.Marshal(responseBodySerialized)
 		if err != nil {
 			log.Println("error when marshalling response body gauge: ", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.Write(responseBodySerializedJson)
+		w.Write(responseBodySerializedJSON)
 		w.WriteHeader(http.StatusOK)
 		return
 
@@ -81,13 +81,13 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 			Delta: &val,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		responseBodySerializedJson, err := json.Marshal(responseBodySerialized)
+		responseBodySerializedJSON, err := json.Marshal(responseBodySerialized)
 		if err != nil {
 			log.Println("error when marshalling response body counter: ", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.Write(responseBodySerializedJson)
+		w.Write(responseBodySerializedJSON)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
