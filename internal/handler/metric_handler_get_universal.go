@@ -2,9 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +49,11 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 	switch metricType {
 	case Gauge:
 		val, err := h.service.GetGauge(r.Context(), requestBodySerialised.ID)
+		if errors.Is(err, mux.ErrNotFound) {
+			log.Println("gauge with this name wasn't found: ", requestBodySerialised.ID, err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 		if err != nil {
 			log.Println("error when getting the gauge: ", requestBodySerialised.ID, err)
 			w.WriteHeader(http.StatusInternalServerError)
