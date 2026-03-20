@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gorilla/mux"
+	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 )
 
 func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +49,7 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 	switch metricType {
 	case Gauge:
 		val, err := h.service.GetGauge(r.Context(), requestBodySerialised.ID)
-		if errors.Is(err, mux.ErrNotFound) {
+		if errors.Is(err, repository.ErrNotFound) {
 			log.Println("gauge with this name wasn't found: ", requestBodySerialised.ID, err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -77,7 +77,7 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 
 	case Counter:
 		val, err := h.service.GetCounter(r.Context(), requestBodySerialised.ID)
-		if errors.Is(err, mux.ErrNotFound) {
+		if errors.Is(err, repository.ErrNotFound) {
 			log.Println("counter with this name wasn't found: ", requestBodySerialised.ID, err)
 			w.WriteHeader(http.StatusNotFound)
 			return
