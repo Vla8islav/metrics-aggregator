@@ -1,0 +1,6 @@
+apiVersion: v2
+name: metrics-aggregator
+version: 0.0.1
+appVersion: "0.0.1"
+description: Helm chart for deploying the metrics-aggregator service.
+type: application

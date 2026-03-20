@@ -1,0 +1,28 @@
+image:
+  repository: cr.yandex/crpsssmuhjtqus0tfuhb/metrics-aggregator
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8080
+
+replicaCount: 1
+podAnnotations: {}
+resources: {}
+
+env:
+  SERVER_ADDRESS: "0.0.0.0:8080"
+
+extraEnv: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+ingress:
+  enabled: true
+  className: gwin-default
+  host: metrics.overbooru.world
+  groupName: metrics-aggregator
+  externalIPv4Address: auto
