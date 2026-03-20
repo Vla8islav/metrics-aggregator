@@ -41,5 +41,7 @@ func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("error closing the HTML tag: %s", err.Error())
 	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "text/html")
 
 }
