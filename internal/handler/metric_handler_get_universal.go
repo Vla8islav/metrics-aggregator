@@ -77,7 +77,11 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 
 	case Counter:
 		val, err := h.service.GetCounter(r.Context(), requestBodySerialised.ID)
-		if err != nil {
+		if errors.Is(err, mux.ErrNotFound) {
+			log.Println("counter with this name wasn't found: ", requestBodySerialised.ID, err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		} else if err != nil {
 			log.Println("error when getting the counter: ", requestBodySerialised.ID, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
