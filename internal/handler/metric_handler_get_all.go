@@ -19,6 +19,7 @@ func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/html")
 	// Laziest HTML page ever
 	_, err = w.Write([]byte("<HTML>"))
 	if err != nil {
@@ -41,7 +42,5 @@ func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("error closing the HTML tag: %s", err.Error())
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "text/html")
 
 }
