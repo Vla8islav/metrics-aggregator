@@ -99,7 +99,12 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.Write(responseBodySerializedJSON)
+		_, err = w.Write(responseBodySerializedJSON)
+		if err != nil {
+			log.Println("error when writing response body counter: ", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		return
 	}

@@ -24,10 +24,14 @@ func main() {
 	h := handler.NewHandler(srvApp)
 	r := handler.NewRouter(h)
 
-	rwl := middlewares.WithLogging(logger, r)
+	handlerWithMW := middlewares.ChainMiddlewares(
+		r,
+		middlewares.WithLogging(logger),
+		middlewares.WithGzipCompression(),
+	)
 
 	srvImpl := &http.Server{Addr: config.ReadFlags().ServerAddress,
-		Handler:     rwl,
+		Handler:     handlerWithMW,
 		ReadTimeout: 5 * time.Second}
 
 	err = srvImpl.ListenAndServe()
