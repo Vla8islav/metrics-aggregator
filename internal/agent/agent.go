@@ -127,6 +127,7 @@ func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricN
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Accept-Encoding", "gzip")
 
 	resp, err := a.client.Do(req)
 	if err != nil {
