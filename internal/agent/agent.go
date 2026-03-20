@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
+	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
@@ -103,9 +104,6 @@ func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricN
 	base.Path = path.Join(
 		base.Path,
 		"update",
-		//string(metricType),
-		//metricName,
-		//metricValue,
 	)
 
 	payload := models.Metrics{
@@ -118,12 +116,17 @@ func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricN
 	if err != nil {
 		return err
 	}
+	payloadBytesCompressed, err := helpers.GzipCompress(payloadBytes)
+	if err != nil {
+		return err
+	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), bytes.NewReader(payloadBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), bytes.NewReader(payloadBytesCompressed))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
 
 	resp, err := a.client.Do(req)
 	if err != nil {
