@@ -9,6 +9,7 @@ import (
 
 type CustomSecondsDuration struct {
 	time.Duration
+	BeenSet bool
 }
 
 // a fancy go assertion because env is implicit and it's parsing is also implicit
@@ -28,6 +29,7 @@ func absInt(x int) int {
 func (d *CustomSecondsDuration) Set(value string) error {
 	if dur, err := time.ParseDuration(value); err == nil {
 		d.Duration = dur
+		d.BeenSet = true
 		return nil
 	}
 
@@ -38,6 +40,7 @@ func (d *CustomSecondsDuration) Set(value string) error {
 	}
 	// assume that this value is in seconds
 	d.Duration = time.Duration(absInt(seconds)) * time.Second
+	d.BeenSet = true
 	return nil
 }
 

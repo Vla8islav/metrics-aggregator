@@ -27,8 +27,6 @@ func NewMemStorage(config *config.Options) *MemoryStorage {
 }
 
 func (s *MemoryStorage) Restore(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.config.Restore.Value {
 		err := s.LoadState(ctx)
 		if err != nil {
@@ -39,7 +37,7 @@ func (s *MemoryStorage) Restore(ctx context.Context) error {
 }
 
 func (s *MemoryStorage) StartSaving(ctx context.Context) error {
-	if s.config.Restore.Value {
+	if s.config.Restore.Value && s.config.StoreInterval.Duration > 0 {
 		fileSaveTicker := time.NewTicker(s.config.StoreInterval.Duration)
 		defer fileSaveTicker.Stop()
 
