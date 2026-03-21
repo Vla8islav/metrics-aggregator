@@ -21,14 +21,12 @@ func main() {
 	defer logger.Sync() // flushes buffer, if any
 
 	currentConfig := config.ReadFlags()
+	logger.Info("Config: ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	db := repository.NewMemStorage(currentConfig)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	err = db.StartSaving(ctx)
-	if err != nil {
-		panic(err)
-	}
+	go db.RunSaver(ctx)
 	err = db.Restore(ctx)
 	if err != nil {
 		return
@@ -44,7 +42,7 @@ func main() {
 		middlewares.WithGzipCompression(),
 	)
 
-	srvImpl := &http.Server{Addr: currentConfig.ServerAddress,
+	srvImpl := &http.Server{Addr: currentConfig.ServerAddress.Value,
 		Handler:     handlerWithMW,
 		ReadTimeout: 5 * time.Second}
 

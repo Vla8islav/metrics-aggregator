@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +17,8 @@ const defaultGaugeName = "gauge"
 func TestMemStorageIncrementCounter(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	s := NewMemStorage()
+	cfg := config.ReadFlags()
+	s := NewMemStorage(cfg)
 
 	err := s.IncrementCounter(ctx, defaultCounterName, 5)
 	require.NoError(t, err)
@@ -35,7 +37,8 @@ func TestMemStorageIncrementCounter(t *testing.T) {
 func TestMemStorageSetGauge(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	s := NewMemStorage()
+	cfg := config.ReadFlags()
+	s := NewMemStorage(cfg)
 	delta := 0.000001
 
 	err := s.SetGauge(ctx, defaultGaugeName, 42.5)
@@ -54,7 +57,8 @@ func TestMemStorageSetGauge(t *testing.T) {
 func TestMemStorageConcurrentAccessCounter(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	s := NewMemStorage()
+	cfg := config.ReadFlags()
+	s := NewMemStorage(cfg)
 	var wg sync.WaitGroup
 	const workers = 100
 	incrementsPerWorker := 10
@@ -83,7 +87,8 @@ func TestMemStorageConcurrentAccessCounter(t *testing.T) {
 func TestMemStorageConcurrentAccessGauge(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	s := NewMemStorage()
+	cfg := config.ReadFlags()
+	s := NewMemStorage(cfg)
 	var wg sync.WaitGroup
 	const workers = 100
 	wg.Add(workers)

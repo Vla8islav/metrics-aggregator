@@ -18,8 +18,17 @@ type Options struct {
 	Restore         OptionalBool          `env:"RESTORE"`
 }
 
+func setOptionsTrue(options *Options) {
+	options.ServerAddress.BeenSet = true
+	options.PollInterval.BeenSet = true
+	options.ReportInterval.BeenSet = true
+	options.StoreInterval.BeenSet = true
+	options.FileStoragePath.BeenSet = true
+	options.Restore.BeenSet = true
+
+}
+
 func ReadFlags() *Options {
-	var optionsInstance *Options
 	cmdOptions := getCmdOptions()
 	envOptions := getEnvOptions()
 
@@ -35,8 +44,9 @@ func ReadFlags() *Options {
 	// env options are the priority
 	mergeOptions(&finalOptions, envOptions)
 	mergeOptions(&finalOptions, cmdOptions)
-	optionsInstance = &finalOptions
-	return optionsInstance
+
+	setOptionsTrue(&finalOptions)
+	return &finalOptions
 }
 
 func mergeOptions(mergeInto *Options, newValues Options) {

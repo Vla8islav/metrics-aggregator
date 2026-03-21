@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"sync"
 	"time"
@@ -36,7 +37,7 @@ func (s *MemoryStorage) Restore(ctx context.Context) error {
 	return nil
 }
 
-func (s *MemoryStorage) StartSaving(ctx context.Context) error {
+func (s *MemoryStorage) RunSaver(ctx context.Context) error {
 	if s.config.Restore.Value && s.config.StoreInterval.Duration > 0 {
 		fileSaveTicker := time.NewTicker(s.config.StoreInterval.Duration)
 		defer fileSaveTicker.Stop()
@@ -48,7 +49,7 @@ func (s *MemoryStorage) StartSaving(ctx context.Context) error {
 			case <-fileSaveTicker.C:
 				err := s.SaveState(ctx)
 				if err != nil {
-					return err
+					log.Printf("failed to save state: %v", err)
 				}
 			}
 		}
@@ -175,7 +176,7 @@ func (s *MemoryStorage) SaveState(ctx context.Context) error {
 	}
 
 	filename := s.config.FileStoragePath
-	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	file, err := os.OpenFile(filename.Value, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
@@ -203,12 +204,12 @@ func (s *MemoryStorage) LoadState(ctx context.Context) error {
 	defer s.mu.Unlock()
 
 	// check if file exists
-	if _, err := os.Stat(s.config.FileStoragePath); os.IsNotExist(err) {
+	if _, err := os.Stat(s.config.FileStoragePath.Value); os.IsNotExist(err) {
 		return nil
 	}
 
 	// now we know it does, so let's load it
-	file, err := os.OpenFile(s.config.FileStoragePath, os.O_RDONLY, 0644)
+	file, err := os.OpenFile(s.config.FileStoragePath.Value, os.O_RDONLY, 0644)
 	if file != nil {
 		defer file.Close()
 	}

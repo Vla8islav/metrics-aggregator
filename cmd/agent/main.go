@@ -10,7 +10,7 @@ import (
 
 func main() {
 	currentConfig := config.ReadFlags()
-	serverAddr := "http://" + currentConfig.ServerAddress
+	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
 	reportInterval := currentConfig.ReportInterval.Duration
 

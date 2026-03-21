@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -113,7 +114,8 @@ func TestPostMetrics(t *testing.T) {
 
 			metricName := tt.vars["metricName"]
 
-			db := repository.NewMemStorage()
+			cfg := config.ReadFlags()
+			db := repository.NewMemStorage(cfg)
 			h := NewHandler(db)
 			h.SetMetrics(rr, req)
 
