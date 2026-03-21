@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -19,7 +20,20 @@ func main() {
 	}
 	defer logger.Sync() // flushes buffer, if any
 
-	db := repository.NewMemStorage()
+	currentConfig := config.ReadFlags()
+
+	db := repository.NewMemStorage(currentConfig)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	err = db.StartSaving(ctx)
+	if err != nil {
+		panic(err)
+	}
+	err = db.Restore(ctx)
+	if err != nil {
+		return
+	}
+
 	srvApp := service.NewMetricsService(db)
 	h := handler.NewHandler(srvApp)
 	r := handler.NewRouter(h)
@@ -30,7 +44,7 @@ func main() {
 		middlewares.WithGzipCompression(),
 	)
 
-	srvImpl := &http.Server{Addr: config.ReadFlags().ServerAddress,
+	srvImpl := &http.Server{Addr: currentConfig.ServerAddress,
 		Handler:     handlerWithMW,
 		ReadTimeout: 5 * time.Second}
 

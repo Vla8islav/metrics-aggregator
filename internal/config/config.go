@@ -18,19 +18,16 @@ type Options struct {
 	Restore         OptionalBool          `env:"RESTORE"`
 }
 
-var optionsInstance *Options
-
 func ReadFlags() *Options {
-	if optionsInstance == nil {
-		cmdOptions := getCmdOptions()
-		envOptions := getEnvOptions()
+	var optionsInstance *Options
+	cmdOptions := getCmdOptions()
+	envOptions := getEnvOptions()
 
-		finalOptions := Options{}
-		// env options are the priority
-		mergeOptions(&finalOptions, envOptions)
-		mergeOptions(&finalOptions, cmdOptions)
-		optionsInstance = &finalOptions
-	}
+	finalOptions := Options{}
+	// env options are the priority
+	mergeOptions(&finalOptions, envOptions)
+	mergeOptions(&finalOptions, cmdOptions)
+	optionsInstance = &finalOptions
 	return optionsInstance
 }
 

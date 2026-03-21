@@ -9,9 +9,10 @@ import (
 )
 
 func main() {
-	serverAddr := "http://" + config.ReadFlags().ServerAddress
-	pollInterval := config.ReadFlags().PollInterval.Duration
-	reportInterval := config.ReadFlags().ReportInterval.Duration
+	currentConfig := config.ReadFlags()
+	serverAddr := "http://" + currentConfig.ServerAddress
+	pollInterval := currentConfig.PollInterval.Duration
+	reportInterval := currentConfig.ReportInterval.Duration
 
 	ag := agent.NewAgent(serverAddr, pollInterval, reportInterval)
 
