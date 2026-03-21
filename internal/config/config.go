@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"io"
 	"log"
 	"time"
 
@@ -28,8 +29,12 @@ func setOptionsTrue(options *Options) {
 
 }
 
-func ReadFlags() *Options {
-	cmdOptions := getCmdOptions()
+func ReadFlags(args []string) *Options {
+	cmdOptions, err := getCmdOptions(args)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	envOptions := getEnvOptions()
 
 	finalOptions := Options{
@@ -42,8 +47,8 @@ func ReadFlags() *Options {
 	}
 
 	// env options are the priority
-	mergeOptions(&finalOptions, envOptions)
 	mergeOptions(&finalOptions, cmdOptions)
+	mergeOptions(&finalOptions, envOptions)
 
 	setOptionsTrue(&finalOptions)
 	return &finalOptions
@@ -84,21 +89,27 @@ func getEnvOptions() Options {
 	return opt
 }
 
-func getCmdOptions() Options {
-	opt := Options{
-		StoreInterval: CustomSecondsDuration{Duration: 300 * time.Second},
-	}
-	flag.Var(&opt.ServerAddress, "a", "port on which the server should run")
-	flag.Var(&opt.ReportInterval, "e", "how often console utility should send metrics")
-	flag.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")
+func getCmdOptions(args []string) (Options, error) {
 
-	flag.Var(&opt.StoreInterval, "i", "интервал времени в секундах, по истечении которого"+
+	opt := Options{}
+
+	fs := flag.NewFlagSet("metrics-aggregator", flag.ContinueOnError)
+	fs.SetOutput(io.Discard) // optional: silence flag errors in tests
+
+	fs.Var(&opt.ServerAddress, "a", "port on which the server should run")
+	fs.Var(&opt.ReportInterval, "e", "how often console utility should send metrics")
+	fs.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")
+
+	fs.Var(&opt.StoreInterval, "i", "интервал времени в секундах, по истечении которого"+
 		" текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)")
-	flag.Var(&opt.FileStoragePath, "f", "путь до файла, куда "+
+	fs.Var(&opt.FileStoragePath, "f", "путь до файла, куда "+
 		"сохраняются текущие значения. Имя файла для значения по умолчанию придумайте сами.")
-	flag.Var(&opt.Restore, "r", "булево значение (true/false), определяющее, "+
+	fs.Var(&opt.Restore, "r", "булево значение (true/false), определяющее, "+
 		"следует ли загружать ранее сохранённые значения из указанного файла при старте сервера")
 
-	flag.Parse()
-	return opt
+	if err := fs.Parse(args); err != nil {
+		return Options{}, err
+	}
+
+	return opt, nil
 }

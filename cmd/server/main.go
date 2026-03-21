@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
@@ -20,7 +21,7 @@ func main() {
 	}
 	defer logger.Sync() // flushes buffer, if any
 
-	currentConfig := config.ReadFlags()
+	currentConfig := config.ReadFlags(os.Args[1:])
 	logger.Info("Config: ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	db := repository.NewMemStorage(currentConfig)

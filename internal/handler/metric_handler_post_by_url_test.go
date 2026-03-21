@@ -114,7 +114,7 @@ func TestPostMetrics(t *testing.T) {
 
 			metricName := tt.vars["metricName"]
 
-			cfg := config.ReadFlags()
+			cfg := config.ReadFlags(nil)
 			db := repository.NewMemStorage(cfg)
 			h := NewHandler(db)
 			h.SetMetrics(rr, req)

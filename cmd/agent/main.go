@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/agent"
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 )
 
 func main() {
-	currentConfig := config.ReadFlags()
+	currentConfig := config.ReadFlags(os.Args[1:])
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
 	reportInterval := currentConfig.ReportInterval.Duration
