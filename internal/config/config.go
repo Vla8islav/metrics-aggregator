@@ -97,14 +97,14 @@ func getCmdOptions(args []string) (Options, error) {
 	fs.SetOutput(io.Discard) // optional: silence flag errors in tests
 
 	fs.Var(&opt.ServerAddress, "a", "port on which the server should run")
-	fs.Var(&opt.ReportInterval, "e", "how often console utility should send metrics")
+	fs.Var(&opt.ReportInterval, "r", "how often console utility should send metrics")
 	fs.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")
 
 	fs.Var(&opt.StoreInterval, "i", "интервал времени в секундах, по истечении которого"+
 		" текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)")
 	fs.Var(&opt.FileStoragePath, "f", "путь до файла, куда "+
 		"сохраняются текущие значения. Имя файла для значения по умолчанию придумайте сами.")
-	fs.Var(&opt.Restore, "r", "булево значение (true/false), определяющее, "+
+	fs.Var(&opt.Restore, "t", "булево значение (true/false), определяющее, "+
 		"следует ли загружать ранее сохранённые значения из указанного файла при старте сервера")
 
 	if err := fs.Parse(args); err != nil {
