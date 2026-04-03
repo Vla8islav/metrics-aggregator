@@ -44,7 +44,7 @@ func NewPostgresStorage(config *config.Options) (*PostgresStorage, error) {
 func (s *PostgresStorage) Ping(ctx context.Context) error {
 
 	if s.db == nil {
-		return errors.New("Database pointer was nil")
+		return errors.New("database pointer was nil")
 	}
 
 	// verify connection
