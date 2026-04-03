@@ -3,12 +3,9 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
-	"os"
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
@@ -82,7 +79,15 @@ func (s *PostgresStorage) GetAll(ctx context.Context) (models.MetricsExport, err
 	default:
 	}
 
-	rows, err := s.db.QueryContext(ctx, "SELECT * FROM metric_counters")
+	counters, err := s.getCounters(ctx)
+	if err != nil {
+		return models.MetricsExport{}, err
+	}
+
+	gauges, err := s.getGauges(ctx)
+	if err != nil {
+		return models.MetricsExport{}, err
+	}
 
 	return models.MetricsExport{
 		Counters: counters,
@@ -91,21 +96,58 @@ func (s *PostgresStorage) GetAll(ctx context.Context) (models.MetricsExport, err
 
 }
 
-func (s *PostgresStorage) IncrementCounter(ctx context.Context, name string, number int64) error {
+func (s *PostgresStorage) getCounters(ctx context.Context) (map[string]int64, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT * FROM metric_counters")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
+	counters := make(map[string]int64)
+	for rows.Next() {
+		var name string
+		var value int64
+
+		if err = rows.Scan(&name, &value); err != nil {
+			return nil, err
+		}
+		counters[name] = value
+	}
+	return counters, nil
+}
+
+func (s *PostgresStorage) getGauges(ctx context.Context) (map[string]float64, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT * FROM metric_gauges")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	gauges := make(map[string]float64)
+	for rows.Next() {
+		var name string
+		var value float64
+
+		if err = rows.Scan(&name, &value); err != nil {
+			return nil, err
+		}
+		gauges[name] = value
+	}
+	return gauges, nil
+}
+
+func (s *PostgresStorage) IncrementCounter(ctx context.Context, name string, number int64) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
-	s.mu.Lock()
-	if _, ok := s.namedCounter[name]; ok {
-		s.namedCounter[name] = s.namedCounter[name] + number
-	} else {
-		s.namedCounter[name] = number
-	}
-	s.mu.Unlock()
-	err := s.saveIfImmediateSaveIsSet(ctx)
+	_, err := s.db.ExecContext(ctx, `
+	    INSERT INTO metric_counters (name, value)
+	    VALUES ($1, $2)
+	    ON CONFLICT (name)
+	    DO UPDATE SET value = metric_counters.value + EXCLUDED.value
+	`, name, number)
 	if err != nil {
 		return err
 	}
@@ -128,10 +170,12 @@ func (s *PostgresStorage) SetGauge(ctx context.Context, name string, gauge float
 		return ctx.Err()
 	default:
 	}
-	s.mu.Lock()
-	s.namedGauge[name] = gauge
-	s.mu.Unlock()
-	err := s.saveIfImmediateSaveIsSet(ctx)
+	_, err := s.db.ExecContext(ctx, `
+	    INSERT INTO metric_gauges (name, value)
+	    VALUES ($1, $2)
+	    ON CONFLICT (name)
+	    DO UPDATE SET value = EXCLUDED.value
+	`, name, gauge)
 	if err != nil {
 		return err
 	}
@@ -139,33 +183,30 @@ func (s *PostgresStorage) SetGauge(ctx context.Context, name string, gauge float
 }
 
 func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, error) {
-	select {
-	case <-ctx.Done():
-		return 0.0, ctx.Err()
-	default:
+	var value float64
+	err := s.db.QueryRowContext(ctx, "SELECT * FROM metric_gauges WHERE name = $1", name).Scan(&value)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("%w: %s", ErrNotFound, name)
+		}
+		return 0, err
 	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	value, ok := s.namedGauge[name]
-	if !ok {
-		return 0.0, fmt.Errorf("%w: %s", ErrNotFound, name)
-	}
+
 	return value, nil
 }
 
 func (s *PostgresStorage) GetCounter(ctx context.Context, name string) (int64, error) {
-	select {
-	case <-ctx.Done():
-		return 0.0, ctx.Err()
-	default:
+	var value int64
+	err := s.db.QueryRowContext(ctx, "SELECT * FROM metric_counters WHERE name = $1", name).Scan(&value)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("%w: %s", ErrNotFound, name)
+		}
+		return 0, err
 	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	value, ok := s.namedCounter[name]
-	if !ok {
-		return 0, fmt.Errorf("%w: %s", ErrNotFound, name)
-	}
+
 	return value, nil
+
 }
 
 func (s *PostgresStorage) SaveState(ctx context.Context) error {
@@ -175,26 +216,7 @@ func (s *PostgresStorage) SaveState(ctx context.Context) error {
 	default:
 	}
 
-	export, err := s.GetAll(ctx)
-	if err != nil {
-		return err
-	}
-
-	filename := s.config.FileStoragePath
-	file, err := os.OpenFile(filename.Value, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	marshalingResult, err := json.Marshal(export)
-	if err != nil {
-		return err
-	}
-	_, err = file.Write(marshalingResult)
-	if err != nil {
-		return err
-	}
+	// here save is handled by the DB
 
 	return nil
 }
@@ -205,43 +227,8 @@ func (s *PostgresStorage) LoadState(ctx context.Context) error {
 		return ctx.Err()
 	default:
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
-	// check if file exists
-	if _, err := os.Stat(s.config.FileStoragePath.Value); os.IsNotExist(err) {
-		return nil
-	}
-
-	// now we know it does, so let's load it
-	file, err := os.OpenFile(s.config.FileStoragePath.Value, os.O_RDONLY, 0644)
-	if file != nil {
-		defer file.Close()
-	}
-	if err != nil {
-		return err
-	}
-
-	fileContent, err := io.ReadAll(file)
-	if err != nil {
-		return err
-	}
-
-	var metrics models.MetricsExport
-
-	err = json.Unmarshal(fileContent, &metrics)
-	if err != nil {
-		return err
-	}
-	if metrics.Counters == nil {
-		metrics.Counters = make(map[string]int64)
-	}
-	if metrics.Gauges == nil {
-		metrics.Gauges = make(map[string]float64)
-	}
-
-	s.namedCounter = metrics.Counters
-	s.namedGauge = metrics.Gauges
+	// here load is handled by the DB
 
 	return nil
 }
