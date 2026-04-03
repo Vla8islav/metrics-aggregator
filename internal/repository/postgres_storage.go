@@ -11,6 +11,7 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	goose "github.com/pressly/goose/v3"
 )
 
 type PostgresStorage struct {
@@ -38,6 +39,13 @@ func NewPostgresStorage(config *config.Options) (*PostgresStorage, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Run all pending migrations from migrations/
+	if err := goose.Up(db, "./migrations"); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("apply goose migrations: %w", err)
+	}
+
 	return &storage, nil
 }
 
@@ -65,24 +73,7 @@ func (s *PostgresStorage) Restore(ctx context.Context) error {
 	return nil
 }
 
-func (s *PostgresStorage) RunSaver(ctx context.Context) error {
-	if s.config.Restore.Value && s.config.StoreInterval.Duration > 0 {
-		fileSaveTicker := time.NewTicker(s.config.StoreInterval.Duration)
-		defer fileSaveTicker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			case <-fileSaveTicker.C:
-				err := s.SaveState(ctx)
-				if err != nil {
-					log.Printf("failed to save state: %v", err)
-				}
-			}
-		}
-
-	}
+func (s *PostgresStorage) RunSaver(_ context.Context) error {
 	return nil
 }
 
