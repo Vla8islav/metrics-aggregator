@@ -127,6 +127,9 @@ func (s *PostgresStorage) getCounters(ctx context.Context) (map[string]int64, er
 		}
 		counters[name] = value
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 	return counters, nil
 }
 
@@ -146,6 +149,9 @@ func (s *PostgresStorage) getGauges(ctx context.Context) (map[string]float64, er
 			return nil, err
 		}
 		gauges[name] = value
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 	return gauges, nil
 }

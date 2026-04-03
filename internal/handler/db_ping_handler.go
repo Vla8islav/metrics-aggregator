@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (h *Handler) DbPing(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DBPing(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
 		h.logger.Warn("method not allowed",
