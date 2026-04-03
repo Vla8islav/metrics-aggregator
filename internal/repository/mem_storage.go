@@ -26,6 +26,10 @@ func NewMemStorage(config *config.Options) *MemoryStorage {
 	return &MemoryStorage{namedGauge: make(map[string]float64), namedCounter: make(map[string]int64), config: config}
 }
 
+func (s *MemoryStorage) Ping() error {
+	return nil
+}
+
 func (s *MemoryStorage) Restore(ctx context.Context) error {
 	if s.config.Restore.Value {
 		err := s.LoadState(ctx)

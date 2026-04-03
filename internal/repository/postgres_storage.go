@@ -32,14 +32,28 @@ func NewPostgresStorage(config *config.Options) *PostgresStorage {
 		log.Fatal(err)
 		return nil
 	}
-	// verify conntection
+	storage := PostgresStorage{config: config, db: db}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err = db.PingContext(ctx); err != nil {
+	err = storage.Ping(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &storage
+}
+
+func (s *PostgresStorage) Ping(ctx context.Context) error {
+
+	if s.db == nil {
+		log.Fatalf("Database pointer was nil")
+	}
+
+	// verify connection
+	if err := s.db.PingContext(ctx); err != nil {
 		log.Fatal("couldn't ping postgres db " + err.Error())
 	}
 
-	return &PostgresStorage{config: config, db: db}
+	return nil
 }
 
 func (s *PostgresStorage) Restore(ctx context.Context) error {

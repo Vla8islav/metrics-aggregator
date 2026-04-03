@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -17,12 +18,12 @@ import (
 func main() {
 	logger, err := zap.NewProduction()
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to initialize logger: %v", err)
 	}
 	defer logger.Sync() // flushes buffer, if any
 
 	currentConfig := config.ReadFlags(os.Args[1:])
-	logger.Info("Config: ", zap.String("Server addr", currentConfig.ServerAddress.Value))
+	logger.Info("starting server ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	db := repository.NewPostgresStorage(currentConfig)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -30,7 +31,7 @@ func main() {
 	go db.RunSaver(ctx)
 	err = db.Restore(ctx)
 	if err != nil {
-		return
+		logger.Fatal("failed to restore database", zap.Error(err))
 	}
 
 	srvApp := service.NewMetricsService(db)

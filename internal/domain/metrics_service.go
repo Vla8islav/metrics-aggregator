@@ -7,6 +7,7 @@ import (
 )
 
 type MetricService interface {
+	Ping(ctx context.Context) error
 	IncrementCounter(ctx context.Context, name string, number int64) error
 	SetGauge(ctx context.Context, name string, gauge float64) error
 	GetGauge(ctx context.Context, name string) (float64, error)
