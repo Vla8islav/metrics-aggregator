@@ -18,7 +18,7 @@ type PostgresStorage struct {
 	db     *sql.DB
 }
 
-func NewPostgresStorage(config *config.Options) *PostgresStorage {
+func NewPostgresStorage(config *config.Options) (*PostgresStorage, error) {
 	if config == nil || !config.DatabaseDSN.BeenSet {
 		log.Fatalf("config is nil")
 	}
@@ -29,17 +29,16 @@ func NewPostgresStorage(config *config.Options) *PostgresStorage {
 	dsn := config.DatabaseDSN.Value
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
-		log.Fatal(err)
-		return nil
+		return nil, err
 	}
 	storage := PostgresStorage{config: config, db: db}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	err = storage.Ping(ctx)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	return &storage
+	return &storage, nil
 }
 
 func (s *PostgresStorage) Ping(ctx context.Context) error {

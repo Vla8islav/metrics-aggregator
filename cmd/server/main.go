@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
+	"github.com/Vla8islav/metrics-aggregator/internal/domain"
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
 	"github.com/Vla8islav/metrics-aggregator/internal/middlewares"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
@@ -25,13 +26,19 @@ func main() {
 	currentConfig := config.ReadFlags(os.Args[1:])
 	logger.Info("starting server ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
-	db := repository.NewPostgresStorage(currentConfig)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go db.RunSaver(ctx)
-	err = db.Restore(ctx)
+	var db domain.MetricRepository
+	db, err = repository.NewPostgresStorage(currentConfig)
 	if err != nil {
-		logger.Fatal("failed to restore database", zap.Error(err))
+		logger.Error("failed to initialize database, falling back to the in-memory db", zap.Error(err))
+		dbInMemory := repository.NewMemStorage(currentConfig)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go dbInMemory.RunSaver(ctx)
+		err = dbInMemory.Restore(ctx)
+		if err != nil {
+			logger.Fatal("failed to restore database", zap.Error(err))
+		}
+		db = dbInMemory
 	}
 
 	srvApp := service.NewMetricsService(db)
