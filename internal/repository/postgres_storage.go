@@ -2,31 +2,49 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
-type MemoryStorage struct {
-	namedCounter map[string]int64
-	namedGauge   map[string]float64
-	config       *config.Options
-
-	mu sync.RWMutex
+type PostgresStorage struct {
+	config *config.Options
+	db     *sql.DB
 }
 
-func NewMemStorage(config *config.Options) *MemoryStorage {
-	return &MemoryStorage{namedGauge: make(map[string]float64), namedCounter: make(map[string]int64), config: config}
+func NewPostgresStorage(config *config.Options) *PostgresStorage {
+	if config == nil || !config.DatabaseDSN.BeenSet {
+		log.Fatalf("config is nil")
+	}
+	if !config.DatabaseDSN.BeenSet {
+		log.Fatalf("Database DSN wasn't set")
+	}
+
+	dsn := config.DatabaseDSN.Value
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		log.Fatal(err)
+		return nil
+	}
+	// verify conntection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err = db.PingContext(ctx); err != nil {
+		log.Fatal("couldn't ping postgres db " + err.Error())
+	}
+
+	return &PostgresStorage{config: config, db: db}
 }
 
-func (s *MemoryStorage) Restore(ctx context.Context) error {
+func (s *PostgresStorage) Restore(ctx context.Context) error {
 	if s.config.Restore.Value {
 		err := s.LoadState(ctx)
 		if err != nil {
@@ -36,7 +54,7 @@ func (s *MemoryStorage) Restore(ctx context.Context) error {
 	return nil
 }
 
-func (s *MemoryStorage) RunSaver(ctx context.Context) error {
+func (s *PostgresStorage) RunSaver(ctx context.Context) error {
 	if s.config.Restore.Value && s.config.StoreInterval.Duration > 0 {
 		fileSaveTicker := time.NewTicker(s.config.StoreInterval.Duration)
 		defer fileSaveTicker.Stop()
@@ -57,24 +75,14 @@ func (s *MemoryStorage) RunSaver(ctx context.Context) error {
 	return nil
 }
 
-func (s *MemoryStorage) GetAll(ctx context.Context) (models.MetricsExport, error) {
+func (s *PostgresStorage) GetAll(ctx context.Context) (models.MetricsExport, error) {
 	select {
 	case <-ctx.Done():
 		return models.MetricsExport{}, ctx.Err()
 	default:
 	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 
-	counters := make(map[string]int64)
-	for k, v := range s.namedCounter {
-		counters[k] = v
-	}
-
-	gauges := make(map[string]float64)
-	for k, v := range s.namedGauge {
-		gauges[k] = v
-	}
+	rows, err := s.db.QueryContext(ctx, "SELECT * FROM metric_counters")
 
 	return models.MetricsExport{
 		Counters: counters,
@@ -83,7 +91,7 @@ func (s *MemoryStorage) GetAll(ctx context.Context) (models.MetricsExport, error
 
 }
 
-func (s *MemoryStorage) IncrementCounter(ctx context.Context, name string, number int64) error {
+func (s *PostgresStorage) IncrementCounter(ctx context.Context, name string, number int64) error {
 
 	select {
 	case <-ctx.Done():
@@ -104,7 +112,7 @@ func (s *MemoryStorage) IncrementCounter(ctx context.Context, name string, numbe
 	return nil
 }
 
-func (s *MemoryStorage) saveIfImmediateSaveIsSet(ctx context.Context) error {
+func (s *PostgresStorage) saveIfImmediateSaveIsSet(ctx context.Context) error {
 	if s.config.Restore.Value && s.config.StoreInterval.Duration == 0 {
 		err := s.SaveState(ctx)
 		if err != nil {
@@ -114,7 +122,7 @@ func (s *MemoryStorage) saveIfImmediateSaveIsSet(ctx context.Context) error {
 	return nil
 }
 
-func (s *MemoryStorage) SetGauge(ctx context.Context, name string, gauge float64) error {
+func (s *PostgresStorage) SetGauge(ctx context.Context, name string, gauge float64) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -130,7 +138,7 @@ func (s *MemoryStorage) SetGauge(ctx context.Context, name string, gauge float64
 	return nil
 }
 
-func (s *MemoryStorage) GetGauge(ctx context.Context, name string) (float64, error) {
+func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	select {
 	case <-ctx.Done():
 		return 0.0, ctx.Err()
@@ -145,7 +153,7 @@ func (s *MemoryStorage) GetGauge(ctx context.Context, name string) (float64, err
 	return value, nil
 }
 
-func (s *MemoryStorage) GetCounter(ctx context.Context, name string) (int64, error) {
+func (s *PostgresStorage) GetCounter(ctx context.Context, name string) (int64, error) {
 	select {
 	case <-ctx.Done():
 		return 0.0, ctx.Err()
@@ -160,7 +168,7 @@ func (s *MemoryStorage) GetCounter(ctx context.Context, name string) (int64, err
 	return value, nil
 }
 
-func (s *MemoryStorage) SaveState(ctx context.Context) error {
+func (s *PostgresStorage) SaveState(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -191,7 +199,7 @@ func (s *MemoryStorage) SaveState(ctx context.Context) error {
 	return nil
 }
 
-func (s *MemoryStorage) LoadState(ctx context.Context) error {
+func (s *PostgresStorage) LoadState(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()

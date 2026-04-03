@@ -17,6 +17,8 @@ type Options struct {
 	StoreInterval   CustomSecondsDuration `env:"STORE_INTERVAL"`
 	FileStoragePath OptionalString        `env:"FILE_STORAGE_PATH"`
 	Restore         OptionalBool          `env:"RESTORE"`
+
+	DatabaseDSN OptionalString `env:"DATABASE_DSN"`
 }
 
 func setOptionsTrue(options *Options) {
@@ -26,6 +28,7 @@ func setOptionsTrue(options *Options) {
 	options.StoreInterval.BeenSet = true
 	options.FileStoragePath.BeenSet = true
 	options.Restore.BeenSet = true
+	options.DatabaseDSN.BeenSet = true
 
 }
 
@@ -43,6 +46,7 @@ func ReadFlags(args []string) *Options {
 		ReportInterval:  CustomSecondsDuration{Duration: time.Second * 10, BeenSet: false},
 		StoreInterval:   CustomSecondsDuration{Duration: time.Second * 300, BeenSet: false},
 		FileStoragePath: OptionalString{Value: "storage.dat", BeenSet: false},
+		DatabaseDSN:     OptionalString{Value: "postgres://user:password@localhost:5432/metrics-aggregator?metrics_aggregator_dev=disable", BeenSet: false},
 		Restore:         OptionalBool{Value: true, BeenSet: false},
 	}
 
@@ -78,6 +82,10 @@ func mergeOptions(mergeInto *Options, newValues Options) {
 	if newValues.Restore.BeenSet {
 		mergeInto.Restore = newValues.Restore
 	}
+
+	if newValues.DatabaseDSN.BeenSet {
+		mergeInto.DatabaseDSN = newValues.DatabaseDSN
+	}
 }
 
 func getEnvOptions() Options {
@@ -106,6 +114,7 @@ func getCmdOptions(args []string) (Options, error) {
 		"сохраняются текущие значения. Имя файла для значения по умолчанию придумайте сами.")
 	fs.Var(&opt.Restore, "t", "булево значение (true/false), определяющее, "+
 		"следует ли загружать ранее сохранённые значения из указанного файла при старте сервера")
+	fs.Var(&opt.Restore, "d", "connection string/dsn для postgres базы данных")
 
 	if err := fs.Parse(args); err != nil {
 		return Options{}, err
