@@ -35,7 +35,7 @@ func main() {
 	}
 
 	srvApp := service.NewMetricsService(db)
-	h := handler.NewHandler(srvApp)
+	h := handler.NewHandler(srvApp, logger)
 	r := handler.NewRouter(h)
 
 	handlerWithMW := middlewares.ChainMiddlewares(
