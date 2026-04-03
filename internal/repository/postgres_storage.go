@@ -10,6 +10,7 @@ import (
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	models "github.com/Vla8islav/metrics-aggregator/internal/model"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type PostgresStorage struct {

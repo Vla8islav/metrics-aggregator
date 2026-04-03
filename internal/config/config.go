@@ -46,7 +46,7 @@ func ReadFlags(args []string) *Options {
 		ReportInterval:  CustomSecondsDuration{Duration: time.Second * 10, BeenSet: false},
 		StoreInterval:   CustomSecondsDuration{Duration: time.Second * 300, BeenSet: false},
 		FileStoragePath: OptionalString{Value: "storage.dat", BeenSet: false},
-		DatabaseDSN:     OptionalString{Value: "postgres://user:password@localhost:5432/metrics-aggregator?metrics_aggregator_dev=disable", BeenSet: false},
+		DatabaseDSN:     OptionalString{Value: "postgres://default_user:default_password@localhost:5432/metrics_db?sslmode=disable", BeenSet: false},
 		Restore:         OptionalBool{Value: true, BeenSet: false},
 	}
 

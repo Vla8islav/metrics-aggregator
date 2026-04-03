@@ -24,7 +24,7 @@ func main() {
 	currentConfig := config.ReadFlags(os.Args[1:])
 	logger.Info("Config: ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
-	db := repository.NewMemStorage(currentConfig)
+	db := repository.NewPostgresStorage(currentConfig)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go db.RunSaver(ctx)
