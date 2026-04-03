@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 )
 
 func newReqWithVars(t *testing.T, target string, method string, vars map[string]string, contentType string) *http.Request {
@@ -37,19 +38,19 @@ func TestPostMetrics(t *testing.T) {
 	}{
 		{
 			name: "gauge ok", vars: map[string]string{
-				"metricType":  string(Gauge),
-				"metricName":  defaultMetricName,
-				"metricValue": "1.124",
-			},
+			"metricType":  string(Gauge),
+			"metricName":  defaultMetricName,
+			"metricValue": "1.124",
+		},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
 		},
 		{
 			name: "counter ok", vars: map[string]string{
-				"metricType":  string(Counter),
-				"metricName":  defaultMetricName,
-				"metricValue": "1",
-			},
+			"metricType":  string(Counter),
+			"metricName":  defaultMetricName,
+			"metricValue": "1",
+		},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
 		},
@@ -116,7 +117,8 @@ func TestPostMetrics(t *testing.T) {
 
 			cfg := config.ReadFlags(nil)
 			db := repository.NewMemStorage(cfg)
-			h := NewHandler(db)
+			zap := zaptest.NewLogger(t)
+			h := NewHandler(db, zap)
 			h.SetMetrics(rr, req)
 
 			assert.Equal(t, tt.wantStatus, rr.Code)

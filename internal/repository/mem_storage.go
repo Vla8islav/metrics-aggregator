@@ -26,7 +26,7 @@ func NewMemStorage(config *config.Options) *MemoryStorage {
 	return &MemoryStorage{namedGauge: make(map[string]float64), namedCounter: make(map[string]int64), config: config}
 }
 
-func (s *MemoryStorage) Ping() error {
+func (s *MemoryStorage) Ping(_ context.Context) error {
 	return nil
 }
 
