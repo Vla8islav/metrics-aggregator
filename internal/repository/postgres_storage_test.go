@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/Vla8islav/metrics-aggregator/internal/config"
 )
 
 func TestBatchSetGauge(t *testing.T) {
@@ -149,13 +147,8 @@ func TestBatchIncrementCounters_Empty(t *testing.T) {
 func newTestPostgresStorage(t *testing.T) *PostgresStorage {
 	t.Helper()
 
-	cfg := config.ReadFlags([]string{})
-
-	storage, err := NewPostgresStorage(cfg, "../../migrations")
+	err := testStorage.TruncateEverything()
 	require.NoError(t, err)
 
-	err = storage.TruncateEverything()
-	require.NoError(t, err)
-
-	return storage
+	return testStorage
 }
