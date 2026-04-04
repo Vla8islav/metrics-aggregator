@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Vla8islav/metrics-aggregator/internal/handler"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
 )
@@ -76,14 +75,14 @@ func formatFloat(v float64) string {
 func (a *Agent) report(ctx context.Context) error {
 	// send gauges
 	for name, value := range a.gauges.GetGauges() {
-		if err := a.send(ctx, handler.Gauge, name, &value, nil); err != nil {
+		if err := a.send(ctx, models.Gauge, name, &value, nil); err != nil {
 			return err
 		}
 	}
 
 	// send counters
 	for name, value := range a.gauges.GetCounters() {
-		if err := a.send(ctx, handler.Counter, name, nil, &value); err != nil {
+		if err := a.send(ctx, models.Counter, name, nil, &value); err != nil {
 			return err
 		}
 	}
@@ -91,7 +90,7 @@ func (a *Agent) report(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricName string, gauge *float64, counter *int64) error {
+func (a *Agent) send(ctx context.Context, metricType models.MetricType, metricName string, gauge *float64, counter *int64) error {
 	if gauge == nil && counter == nil {
 		return fmt.Errorf("both gauge and counter are nil")
 	}
@@ -108,7 +107,7 @@ func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricN
 
 	payload := models.Metrics{
 		ID:    metricName,
-		MType: string(metricType),
+		MType: metricType,
 		Delta: counter,
 		Value: gauge,
 	}

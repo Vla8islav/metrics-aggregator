@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
 func (h *Handler) SetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
@@ -26,15 +28,15 @@ func (h *Handler) SetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var requestBodySerialised Metrics
+	var requestBodySerialised models.Metrics
 	err = json.Unmarshal(requestBody, &requestBodySerialised)
 	if err != nil {
 		writeBadRequest(w, err.Error())
 		return
 	}
 
-	metricType := MetricType(requestBodySerialised.MType)
-	if _, found := validMetricTypes[metricType]; !found {
+	metricType := models.MetricType(requestBodySerialised.MType)
+	if _, found := models.ValidMetricTypes[metricType]; !found {
 		writeBadRequest(w, "invalid metric type: "+string(metricType))
 		return
 	}
@@ -45,7 +47,7 @@ func (h *Handler) SetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch metricType {
-	case Gauge:
+	case models.Gauge:
 
 		if requestBodySerialised.Value == nil {
 			writeBadRequest(w, "gauge value cannot be nil")
@@ -58,7 +60,7 @@ func (h *Handler) SetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-	case Counter:
+	case models.Counter:
 		if requestBodySerialised.Delta == nil {
 			writeBadRequest(w, "gauge value cannot be nil")
 			return

@@ -13,4 +13,6 @@ type MetricService interface {
 	GetGauge(ctx context.Context, name string) (float64, error)
 	GetCounter(ctx context.Context, name string) (int64, error)
 	GetAll(ctx context.Context) (models.MetricsExport, error)
+
+	UpdateMetrics(ctx context.Context, input []models.Metrics) error
 }

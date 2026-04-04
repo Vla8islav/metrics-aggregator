@@ -64,6 +64,19 @@ func (s *PostgresStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
+func (s *PostgresStorage) TruncateEverything() error {
+	if s.db == nil {
+		return errors.New("database pointer is nil")
+	}
+	_, err := s.db.Exec(`
+		TRUNCATE TABLE metric_counters, metric_gauges RESTART IDENTITY CASCADE
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to turncate tables metric_counters %w", err)
+	}
+	return nil
+}
+
 func (s *PostgresStorage) Restore(ctx context.Context) error {
 	if s.config.Restore.Value {
 		err := s.LoadState(ctx)
@@ -226,6 +239,37 @@ func (s *PostgresStorage) batchSetGauge(ctx context.Context, names []string, gau
 	return nil
 }
 
+func (s *PostgresStorage) batchIncrementCounters(ctx context.Context, names []string, counters []int64) error {
+	if len(names) == 0 {
+		return nil
+	}
+	if len(counters) != len(names) {
+		return fmt.Errorf("batchIncrementCounters called with incorrect number of counters")
+	}
+	positionalArguments := make([]string, len(names))
+	var values []interface{}
+
+	for i, name := range names {
+		position1 := i*2 + 1
+		position2 := i*2 + 2
+		counterIncrement := counters[i]
+
+		positionalArguments[i] = fmt.Sprintf("($%d, $%d)", position1, position2)
+		values = append(values, name, counterIncrement)
+	}
+
+	query := fmt.Sprintf(`INSERT INTO metric_counters (name, value)
+	    VALUES %s
+	    ON CONFLICT (name)
+	    DO UPDATE SET value = metric_counters.value + EXCLUDED.value
+	`, strings.Join(positionalArguments, ","))
+
+	_, err := s.db.ExecContext(ctx, query, values...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	var value float64
 	err := s.db.QueryRowContext(ctx, "SELECT value FROM metric_gauges WHERE name = $1", name).Scan(&value)
@@ -241,7 +285,7 @@ func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, e
 
 func (s *PostgresStorage) GetCounter(ctx context.Context, name string) (int64, error) {
 	var value int64
-	err := s.db.QueryRowContext(ctx, "SELECT * FROM metric_counters WHERE name = $1", name).Scan(&value)
+	err := s.db.QueryRowContext(ctx, "SELECT value FROM metric_counters WHERE name = $1", name).Scan(&value)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, fmt.Errorf("%w: %s", ErrNotFound, name)

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/gorilla/mux"
 )
 
@@ -19,11 +20,11 @@ func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 	requestComponents := mux.Vars(r)
 
 	metricTypeStr := requestComponents["metricType"]
-	metricType := MetricType(metricTypeStr)
+	metricType := models.MetricType(metricTypeStr)
 	metricName := requestComponents["metricName"]
 	metricValue := requestComponents["metricValue"]
 
-	if _, found := validMetricTypes[metricType]; !found {
+	if _, found := models.ValidMetricTypes[metricType]; !found {
 		writeBadRequest(w, "invalid metric type: "+metricTypeStr)
 		return
 	}
@@ -40,7 +41,7 @@ func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch metricType {
-	case Gauge:
+	case models.Gauge:
 
 		metricValueGauge, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
@@ -53,7 +54,7 @@ func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-	case Counter:
+	case models.Counter:
 		metricValueCounter, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			writeBadRequest(w, "invalid counter value: "+metricValue+err.Error())

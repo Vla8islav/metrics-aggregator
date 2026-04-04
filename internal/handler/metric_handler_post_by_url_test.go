@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
+	"github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +39,7 @@ func TestPostMetrics(t *testing.T) {
 	}{
 		{
 			name: "gauge ok", vars: map[string]string{
-				"metricType":  string(Gauge),
+				"metricType":  string(models.Gauge),
 				"metricName":  defaultMetricName,
 				"metricValue": "1.124",
 			},
@@ -47,7 +48,7 @@ func TestPostMetrics(t *testing.T) {
 		},
 		{
 			name: "counter ok", vars: map[string]string{
-				"metricType":  string(Counter),
+				"metricType":  string(models.Counter),
 				"metricName":  defaultMetricName,
 				"metricValue": "1",
 			},
@@ -67,7 +68,7 @@ func TestPostMetrics(t *testing.T) {
 		{
 			name: "empty metric name",
 			vars: map[string]string{
-				"metricType":  string(Gauge),
+				"metricType":  string(models.Gauge),
 				"metricName":  "",
 				"metricValue": "1.23",
 			},
@@ -77,7 +78,7 @@ func TestPostMetrics(t *testing.T) {
 		{
 			name: "empty metric value",
 			vars: map[string]string{
-				"metricType":  string(Gauge),
+				"metricType":  string(models.Gauge),
 				"metricName":  defaultMetricName,
 				"metricValue": "",
 			},
@@ -87,7 +88,7 @@ func TestPostMetrics(t *testing.T) {
 		{
 			name: "gauge parse error",
 			vars: map[string]string{
-				"metricType":  string(Gauge),
+				"metricType":  string(models.Gauge),
 				"metricName":  defaultMetricName,
 				"metricValue": "invalid_value",
 			},
@@ -97,7 +98,7 @@ func TestPostMetrics(t *testing.T) {
 		{
 			name: "counter parse error",
 			vars: map[string]string{
-				"metricType":  string(Counter),
+				"metricType":  string(models.Counter),
 				"metricName":  defaultMetricName,
 				"metricValue": "1.2",
 			},
@@ -126,13 +127,13 @@ func TestPostMetrics(t *testing.T) {
 			if tt.wantStatus == http.StatusOK {
 				expectedMetricValueStr := tt.vars["metricValue"]
 				switch tt.vars["metricType"] {
-				case string(Gauge):
+				case string(models.Gauge):
 					metricValue, err := strconv.ParseFloat(expectedMetricValueStr, 64)
 					require.NoError(t, err)
 					val, err := h.service.GetGauge(ctx, metricName)
 					require.NoError(t, err)
 					assert.InDelta(t, metricValue, val, 1e-9)
-				case string(Counter):
+				case string(models.Counter):
 					metricValue, err := strconv.ParseInt(expectedMetricValueStr, 10, 64)
 					require.NoError(t, err)
 					val, err := h.service.GetCounter(ctx, metricName)

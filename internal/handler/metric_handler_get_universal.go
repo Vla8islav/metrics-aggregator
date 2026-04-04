@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 )
 
@@ -29,15 +30,15 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var requestBodySerialised Metrics
+	var requestBodySerialised models.Metrics
 	err = json.Unmarshal(requestBody, &requestBodySerialised)
 	if err != nil {
 		writeBadRequest(w, err.Error())
 		return
 	}
 
-	metricType := MetricType(requestBodySerialised.MType)
-	if _, found := validMetricTypes[metricType]; !found {
+	metricType := models.MetricType(requestBodySerialised.MType)
+	if _, found := models.ValidMetricTypes[metricType]; !found {
 		writeBadRequest(w, "invalid metric type: "+string(metricType))
 		return
 	}
@@ -47,7 +48,7 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch metricType {
-	case Gauge:
+	case models.Gauge:
 		val, err := h.service.GetGauge(r.Context(), requestBodySerialised.ID)
 		if errors.Is(err, repository.ErrNotFound) {
 			log.Println("gauge with this name wasn't found: ", requestBodySerialised.ID, err)
@@ -59,9 +60,9 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		responseBodySerialized := Metrics{
+		responseBodySerialized := models.Metrics{
 			ID:    requestBodySerialised.ID,
-			MType: string(Gauge),
+			MType: models.Gauge,
 			Value: &val,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -75,7 +76,7 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 
-	case Counter:
+	case models.Counter:
 		val, err := h.service.GetCounter(r.Context(), requestBodySerialised.ID)
 		if errors.Is(err, repository.ErrNotFound) {
 			log.Println("counter with this name wasn't found: ", requestBodySerialised.ID, err)
@@ -87,9 +88,9 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		responseBodySerialized := Metrics{
+		responseBodySerialized := models.Metrics{
 			ID:    requestBodySerialised.ID,
-			MType: string(Counter),
+			MType: models.Counter,
 			Delta: &val,
 		}
 		w.Header().Set("Content-Type", "application/json")

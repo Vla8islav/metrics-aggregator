@@ -38,3 +38,6 @@ func (m metricsService) GetCounter(ctx context.Context, name string) (int64, err
 func (m metricsService) GetAll(ctx context.Context) (models.MetricsExport, error) {
 	return m.repository.GetAll(ctx)
 }
+func (m metricsService) UpdateMetrics(ctx context.Context, input []models.Metrics) error {
+	return m.repository.UpdateMetrics(ctx, input)
+}

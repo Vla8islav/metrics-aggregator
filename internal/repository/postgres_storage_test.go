@@ -73,12 +73,88 @@ func TestBatchSetGauge_Empty(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestBatchIncrementCounters(t *testing.T) {
+	storage := newTestPostgresStorage(t)
+	ctx := context.Background()
+
+	err := storage.batchIncrementCounters(ctx,
+		[]string{"c1", "c2", "c3"},
+		[]int64{1, 2, 3},
+	)
+	require.NoError(t, err)
+
+	c1, err := storage.GetCounter(ctx, "c1")
+	require.NoError(t, err)
+	require.Equal(t, int64(1), c1)
+
+	c2, err := storage.GetCounter(ctx, "c2")
+	require.NoError(t, err)
+	require.Equal(t, int64(2), c2)
+
+	c3, err := storage.GetCounter(ctx, "c3")
+	require.NoError(t, err)
+	require.Equal(t, int64(3), c3)
+}
+
+func TestBatchIncrementCounters_UpdateExisting(t *testing.T) {
+	storage := newTestPostgresStorage(t)
+	ctx := context.Background()
+
+	err := storage.batchIncrementCounters(ctx,
+		[]string{"c1", "c2"},
+		[]int64{1, 2},
+	)
+	require.NoError(t, err)
+
+	err = storage.batchIncrementCounters(ctx,
+		[]string{"c1", "c2", "c3"},
+		[]int64{10, 20, 30},
+	)
+	require.NoError(t, err)
+
+	c1, err := storage.GetCounter(ctx, "c1")
+	require.NoError(t, err)
+	require.Equal(t, int64(11), c1)
+
+	c2, err := storage.GetCounter(ctx, "c2")
+	require.NoError(t, err)
+	require.Equal(t, int64(22), c2)
+
+	c3, err := storage.GetCounter(ctx, "c3")
+	require.NoError(t, err)
+	require.Equal(t, int64(30), c3)
+}
+
+func TestBatchIncrementCounters_LengthMismatch(t *testing.T) {
+	storage := newTestPostgresStorage(t)
+	ctx := context.Background()
+
+	err := storage.batchIncrementCounters(ctx,
+		[]string{"c1", "c2"},
+		[]int64{1},
+	)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "incorrect number of counters")
+}
+
+func TestBatchIncrementCounters_Empty(t *testing.T) {
+	storage := newTestPostgresStorage(t)
+	ctx := context.Background()
+
+	err := storage.batchIncrementCounters(ctx, nil, nil)
+	require.NoError(t, err)
+}
+
 func newTestPostgresStorage(t *testing.T) *PostgresStorage {
 	t.Helper()
 
 	cfg := config.ReadFlags([]string{})
 
 	storage, err := NewPostgresStorage(cfg, "../../migrations")
+	require.NoError(t, err)
+
+	err = storage.TruncateEverything()
 	require.NoError(t, err)
 
 	return storage
