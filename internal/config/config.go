@@ -33,7 +33,7 @@ func setOptionsTrue(options *Options) {
 }
 
 func ReadFlags(args []string) *Options {
-	cmdOptions, err := getCmdOptions(args)
+	cmdOptions, err := getServerOptions(args)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -97,7 +97,7 @@ func getEnvOptions() Options {
 	return opt
 }
 
-func getCmdOptions(args []string) (Options, error) {
+func getServerOptions(args []string) (Options, error) {
 
 	opt := Options{}
 
