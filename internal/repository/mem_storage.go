@@ -27,7 +27,7 @@ func NewMemStorage(config *config.Options) *MemoryStorage {
 }
 
 func (s *MemoryStorage) Ping(_ context.Context) error {
-	return nil
+	return fmt.Errorf("this is an in-memory storage, not a full-fledged DB")
 }
 
 func (s *MemoryStorage) Restore(ctx context.Context) error {
