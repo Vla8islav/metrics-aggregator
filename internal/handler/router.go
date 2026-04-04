@@ -14,8 +14,8 @@ func NewRouter(handler *Handler) *mux.Router {
 	r.HandleFunc("/value", handler.GetMetricsUniversal)
 	r.HandleFunc("/ping/", handler.DBPing)
 	r.HandleFunc("/ping", handler.DBPing)
-	r.HandleFunc("/updates/", handler.DBPing)
-	r.HandleFunc("/updates", handler.DBPing)
+	r.HandleFunc("/updates/", handler.SetMetricsUniversal)
+	r.HandleFunc("/updates", handler.SetMetricsUniversal)
 	r.HandleFunc("/", handler.GetAllMetrics)
 	return r
 }
