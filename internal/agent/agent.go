@@ -73,18 +73,39 @@ func formatFloat(v float64) string {
 }
 
 func (a *Agent) report(ctx context.Context) error {
+	payload := make([]models.Metrics, 0)
 	// send gauges
 	for name, value := range a.gauges.GetGauges() {
-		if err := a.send(ctx, models.Gauge, name, &value, nil); err != nil {
-			return err
-		}
+		payload = append(payload, models.Metrics{MType: models.Gauge, ID: name, Value: &value})
 	}
 
 	// send counters
 	for name, value := range a.gauges.GetCounters() {
-		if err := a.send(ctx, models.Counter, name, nil, &value); err != nil {
-			return err
-		}
+		payload = append(payload, models.Metrics{MType: models.Counter, ID: name, Delta: &value})
+	}
+
+	err := a.sendBatch(ctx, payload)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Agent) reportBatch(ctx context.Context) error {
+	gauges := a.gauges.GetGauges()
+	counters := a.gauges.GetCounters()
+
+	payload := make([]models.Metrics, len(gauges)+len(counters))
+
+	// send gauges
+	for name, value := range gauges {
+		payload = append(payload, models.Metrics{MType: models.Gauge, ID: name, Value: &value})
+	}
+
+	// send counters
+	for name, value := range counters {
+		payload = append(payload, models.Metrics{MType: models.Counter, ID: name, Delta: &value})
 	}
 
 	return nil
@@ -140,6 +161,50 @@ func (a *Agent) send(ctx context.Context, metricType models.MetricType, metricNa
 		}
 
 		return fmt.Errorf("server returned %s for %s %s=%v", resp.Status, metricType, metricName, *counter)
+	}
+	return nil
+}
+
+func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
+	if metrics == nil {
+		return nil
+	}
+	// POST http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
+	base, err := url.Parse(a.serverAddr)
+	if err != nil {
+		return err
+	}
+
+	base.Path = path.Join(
+		base.Path,
+		"updates",
+	)
+
+	payloadBytes, err := json.Marshal(metrics)
+	if err != nil {
+		return err
+	}
+	payloadBytesCompressed, err := helpers.GzipCompress(payloadBytes)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), bytes.NewReader(payloadBytesCompressed))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Accept-Encoding", "gzip")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("server returned %s for %s payload", resp.Status, string(payloadBytes))
 	}
 	return nil
 }
