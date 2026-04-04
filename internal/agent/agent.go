@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strconv"
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
@@ -67,11 +66,6 @@ func (a *Agent) Start(ctx context.Context) {
 
 }
 
-func formatFloat(v float64) string {
-	// grooming floats a bit
-	return strconv.FormatFloat(v, 'g', -1, 64)
-}
-
 func (a *Agent) report(ctx context.Context) error {
 	payload := make([]models.Metrics, 0)
 	// send gauges
@@ -87,25 +81,6 @@ func (a *Agent) report(ctx context.Context) error {
 	err := a.sendBatch(ctx, payload)
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (a *Agent) reportBatch(ctx context.Context) error {
-	gauges := a.gauges.GetGauges()
-	counters := a.gauges.GetCounters()
-
-	payload := make([]models.Metrics, len(gauges)+len(counters))
-
-	// send gauges
-	for name, value := range gauges {
-		payload = append(payload, models.Metrics{MType: models.Gauge, ID: name, Value: &value})
-	}
-
-	// send counters
-	for name, value := range counters {
-		payload = append(payload, models.Metrics{MType: models.Counter, ID: name, Delta: &value})
 	}
 
 	return nil
