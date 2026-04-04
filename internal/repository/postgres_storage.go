@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
@@ -19,7 +20,7 @@ type PostgresStorage struct {
 	db     *sql.DB
 }
 
-func NewPostgresStorage(config *config.Options) (*PostgresStorage, error) {
+func NewPostgresStorage(config *config.Options, migrationsFolder string) (*PostgresStorage, error) {
 	if config == nil || !config.DatabaseDSN.BeenSet {
 		log.Fatalf("config is nil")
 	}
@@ -41,7 +42,7 @@ func NewPostgresStorage(config *config.Options) (*PostgresStorage, error) {
 	}
 
 	// Run all pending migrations from migrations/
-	if err := goose.Up(db, "./migrations"); err != nil {
+	if err := goose.Up(db, migrationsFolder); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("apply goose migrations: %w", err)
 	}
@@ -193,9 +194,41 @@ func (s *PostgresStorage) SetGauge(ctx context.Context, name string, gauge float
 	return nil
 }
 
+func (s *PostgresStorage) batchSetGauge(ctx context.Context, names []string, gauges []float64) error {
+	if len(names) == 0 {
+		return nil
+	}
+	if len(gauges) != len(names) {
+		return fmt.Errorf("batchSetGauge called with incorrect number of gauges")
+	}
+	positionalArguments := make([]string, len(names))
+	var values []interface{}
+
+	for i, name := range names {
+		position1 := i*2 + 1
+		position2 := i*2 + 2
+		gaugeValue := gauges[i]
+
+		positionalArguments[i] = fmt.Sprintf("($%d, $%d)", position1, position2)
+		values = append(values, name, gaugeValue)
+	}
+
+	query := fmt.Sprintf(`INSERT INTO metric_gauges (name, value) 
+	    VALUES %s
+	    ON CONFLICT (name)
+	    DO UPDATE SET value = EXCLUDED.value
+	`, strings.Join(positionalArguments, ","))
+
+	_, err := s.db.ExecContext(ctx, query, values...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	var value float64
-	err := s.db.QueryRowContext(ctx, "SELECT * FROM metric_gauges WHERE name = $1", name).Scan(&value)
+	err := s.db.QueryRowContext(ctx, "SELECT value FROM metric_gauges WHERE name = $1", name).Scan(&value)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, fmt.Errorf("%w: %s", ErrNotFound, name)
@@ -240,6 +273,29 @@ func (s *PostgresStorage) LoadState(ctx context.Context) error {
 	}
 
 	// here load is handled by the DB
+
+	return nil
+}
+
+func (s *PostgresStorage) UpdateMetrics(ctx context.Context, input []models.Metrics) error {
+	if len(input) == 0 {
+		return nil
+	}
+
+	for _, m := range input {
+		if m.MType == models.Gauge && m.Value != nil {
+			err := s.SetGauge(ctx, m.ID, *m.Value)
+			if err != nil {
+				return err
+			}
+		}
+		if m.MType == models.Counter && m.Delta != nil {
+			err := s.IncrementCounter(ctx, m.ID, *m.Delta)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }

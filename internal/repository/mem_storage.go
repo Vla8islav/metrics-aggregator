@@ -241,3 +241,26 @@ func (s *MemoryStorage) LoadState(ctx context.Context) error {
 
 	return nil
 }
+
+func (s *MemoryStorage) UpdateMetrics(ctx context.Context, input []models.Metrics) error {
+	if len(input) == 0 {
+		return nil
+	}
+
+	for _, m := range input {
+		if m.MType == models.Gauge && m.Value != nil {
+			err := s.SetGauge(ctx, m.ID, *m.Value)
+			if err != nil {
+				return err
+			}
+		}
+		if m.MType == models.Counter && m.Delta != nil {
+			err := s.IncrementCounter(ctx, m.ID, *m.Delta)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}

@@ -114,7 +114,7 @@ func getCmdOptions(args []string) (Options, error) {
 		"сохраняются текущие значения. Имя файла для значения по умолчанию придумайте сами.")
 	fs.Var(&opt.Restore, "t", "булево значение (true/false), определяющее, "+
 		"следует ли загружать ранее сохранённые значения из указанного файла при старте сервера")
-	fs.Var(&opt.Restore, "d", "connection string/dsn для postgres базы данных")
+	fs.Var(&opt.DatabaseDSN, "d", "connection string/dsn для postgres базы данных")
 
 	if err := fs.Parse(args); err != nil {
 		return Options{}, err
