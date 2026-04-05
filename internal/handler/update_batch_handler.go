@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
@@ -12,8 +11,7 @@ import (
 func (h *Handler) UpdateBatchMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
-		log.Println("Only POST method is allowed")
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		h.writeMethodNotAllowed(w, "only POST method is allowed")
 		return
 	}
 

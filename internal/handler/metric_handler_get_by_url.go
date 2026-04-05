@@ -14,7 +14,7 @@ import (
 func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		h.writeMethodNotAllowed(w, "only GET method is allowed")
 		return
 	}
 
