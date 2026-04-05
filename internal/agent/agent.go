@@ -164,29 +164,27 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 		return err
 	}
 
-	resp, err := helpers.WithRetry(ctx, 1, func(err error) bool {
-		if err == nil {
-			return false
-		}
-		return true
-	}, func() (*http.Response, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), bytes.NewReader(payloadBytesCompressed))
+	resp, err := helpers.WithRetry(ctx, 1,
+		func(err error) bool { return err != nil },
+		func() (*http.Response, error) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+				base.String(), bytes.NewReader(payloadBytesCompressed))
 
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Content-Encoding", "gzip")
-		req.Header.Set("Accept-Encoding", "gzip")
+			if err != nil {
+				return nil, err
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Encoding", "gzip")
+			req.Header.Set("Accept-Encoding", "gzip")
 
-		resp, err := a.client.Do(req)
+			resp, err := a.client.Do(req)
 
-		if err != nil {
-			return nil, err
-		}
+			if err != nil {
+				return nil, err
+			}
 
-		return resp, nil
-	})
+			return resp, nil
+		})
 
 	if err != nil {
 		return err
