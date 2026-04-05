@@ -11,6 +11,7 @@ import (
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	models "github.com/Vla8islav/metrics-aggregator/internal/model"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	goose "github.com/pressly/goose/v3"
 )
@@ -18,6 +19,22 @@ import (
 type PostgresStorage struct {
 	config *config.Options
 	db     *sql.DB
+}
+
+func isRetryablePostgresError(err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+
+	switch pgErr.Code {
+	case "40001": // serialisation
+		return true
+	case "40P01": // deadlock
+		return true
+	default:
+		return false
+	}
 }
 
 func NewPostgresStorage(config *config.Options, migrationsFolder string) (*PostgresStorage, error) {
@@ -118,7 +135,11 @@ func (s *PostgresStorage) GetAll(ctx context.Context) (models.MetricsExport, err
 func (s *PostgresStorage) getCounters(ctx context.Context) (map[string]int64, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT * FROM metric_counters")
 	if err != nil {
-		return nil, err
+		if isRetryablePostgresError(err) {
+			return nil, fmt.Errorf("getting all counters failed retryable: %w", err)
+		}
+
+		return nil, fmt.Errorf("getting all counters failed: %w", err)
 	}
 	defer rows.Close()
 
@@ -141,7 +162,11 @@ func (s *PostgresStorage) getCounters(ctx context.Context) (map[string]int64, er
 func (s *PostgresStorage) getGauges(ctx context.Context) (map[string]float64, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT * FROM metric_gauges")
 	if err != nil {
-		return nil, err
+		if isRetryablePostgresError(err) {
+			return nil, fmt.Errorf("getting all gauges failed retryable: %w", err)
+		}
+
+		return nil, fmt.Errorf("getting all gauges failed: %w", err)
 	}
 	defer rows.Close()
 
@@ -174,7 +199,11 @@ func (s *PostgresStorage) IncrementCounter(ctx context.Context, name string, num
 	    DO UPDATE SET value = metric_counters.value + EXCLUDED.value
 	`, name, number)
 	if err != nil {
-		return err
+		if isRetryablePostgresError(err) {
+			return fmt.Errorf("increment counter failed retryable %s: %w", name, err)
+		}
+
+		return fmt.Errorf("increment counter failed %s: %w", name, err)
 	}
 	return nil
 }
@@ -202,7 +231,11 @@ func (s *PostgresStorage) SetGauge(ctx context.Context, name string, gauge float
 	    DO UPDATE SET value = EXCLUDED.value
 	`, name, gauge)
 	if err != nil {
-		return err
+		if isRetryablePostgresError(err) {
+			return fmt.Errorf("set gauge failed retryable %s: %w", name, err)
+		}
+
+		return fmt.Errorf("set gauge failed %s: %w", name, err)
 	}
 	return nil
 }
@@ -234,7 +267,11 @@ func (s *PostgresStorage) batchSetGauge(ctx context.Context, names []string, gau
 
 	_, err := s.db.ExecContext(ctx, query, values...)
 	if err != nil {
-		return err
+		if isRetryablePostgresError(err) {
+			return fmt.Errorf("set gauge batch failed retryable %s: %w", names, err)
+		}
+
+		return fmt.Errorf("set gauge batch failed %s: %w", names, err)
 	}
 	return nil
 }
@@ -266,18 +303,24 @@ func (s *PostgresStorage) batchIncrementCounters(ctx context.Context, names []st
 
 	_, err := s.db.ExecContext(ctx, query, values...)
 	if err != nil {
-		return err
+		if isRetryablePostgresError(err) {
+			return fmt.Errorf("increment counter failed retryable %s: %w", names, err)
+		}
+
+		return fmt.Errorf("increment counter failed %s: %w", names, err)
 	}
 	return nil
 }
 func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	var value float64
 	err := s.db.QueryRowContext(ctx, "SELECT value FROM metric_gauges WHERE name = $1", name).Scan(&value)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, fmt.Errorf("%w: %s", ErrNotFound, name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, fmt.Errorf("%w: %s", ErrNotFound, name)
+	} else if err != nil {
+		if isRetryablePostgresError(err) {
+			return 0, fmt.Errorf("getting gauge failed retryable %s: %w", name, err)
 		}
-		return 0, err
+		return 0, fmt.Errorf("getting gauge failed %s: %w", name, err)
 	}
 
 	return value, nil
@@ -286,11 +329,13 @@ func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, e
 func (s *PostgresStorage) GetCounter(ctx context.Context, name string) (int64, error) {
 	var value int64
 	err := s.db.QueryRowContext(ctx, "SELECT value FROM metric_counters WHERE name = $1", name).Scan(&value)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, fmt.Errorf("%w: %s", ErrNotFound, name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, fmt.Errorf("%w: %s", ErrNotFound, name)
+	} else if err != nil {
+		if isRetryablePostgresError(err) {
+			return 0, fmt.Errorf("getting counter failed retryable %s: %w", name, err)
 		}
-		return 0, err
+		return 0, fmt.Errorf("getting counter failed %s: %w", name, err)
 	}
 
 	return value, nil
