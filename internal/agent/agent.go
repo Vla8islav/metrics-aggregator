@@ -164,20 +164,35 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), bytes.NewReader(payloadBytesCompressed))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Content-Encoding", "gzip")
-	req.Header.Set("Accept-Encoding", "gzip")
+	resp, err := helpers.WithRetry(ctx, 1, func(err error) bool {
+		if err == nil {
+			return false
+		}
+		return true
+	}, func() (*http.Response, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), bytes.NewReader(payloadBytesCompressed))
 
-	resp, err := a.client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("Accept-Encoding", "gzip")
+
+		resp, err := a.client.Do(req)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return resp, nil
+	})
+
 	if err != nil {
 		return err
 	}
+
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("server returned %s for %s payload", resp.Status, string(payloadBytes))
 	}

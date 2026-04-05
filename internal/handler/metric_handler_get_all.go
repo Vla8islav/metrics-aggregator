@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 )
 
 func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
@@ -25,19 +26,23 @@ func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("error opening the HTML tag: %s", err.Error())
 	}
+	var htmlStrings []string
 	for k, v := range metricsExport.Gauges {
-		_, err = w.Write([]byte(fmt.Sprintf("%s %f </br>", k, v)))
+		htmlStrings = append(htmlStrings, fmt.Sprintf("%s %f </br>", k, v))
+	}
+
+	for k, v := range metricsExport.Counters {
+		htmlStrings = append(htmlStrings, fmt.Sprintf("%s %d </br>", k, v))
+	}
+	sort.Strings(htmlStrings)
+
+	for _, str := range htmlStrings {
+		_, err = w.Write([]byte(str))
 		if err != nil {
 			return
 		}
 	}
 
-	for k, v := range metricsExport.Counters {
-		_, err = w.Write([]byte(fmt.Sprintf("%s %d </br>", k, v)))
-		if err != nil {
-			return
-		}
-	}
 	_, err = w.Write([]byte("</HTML>"))
 	if err != nil {
 		log.Printf("error closing the HTML tag: %s", err.Error())

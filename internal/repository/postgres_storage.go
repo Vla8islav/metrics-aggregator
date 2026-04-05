@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
+	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -198,7 +199,7 @@ func (s *PostgresStorage) IncrementCounter(ctx context.Context, name string, num
 		return ctx.Err()
 	default:
 	}
-	_, err := withRetry(ctx, 3, s.isRetriablePostgresError, func() (sql.Result, error) {
+	_, err := helpers.WithRetry(ctx, 3, s.isRetriablePostgresError, func() (sql.Result, error) {
 		return s.db.ExecContext(ctx, `
 	    INSERT INTO metric_counters (name, value)
 	    VALUES ($1, $2)
@@ -218,7 +219,7 @@ func (s *PostgresStorage) SetGauge(ctx context.Context, name string, gauge float
 		return ctx.Err()
 	default:
 	}
-	_, err := withRetry(ctx, 3, s.isRetriablePostgresError, func() (sql.Result, error) {
+	_, err := helpers.WithRetry(ctx, 3, s.isRetriablePostgresError, func() (sql.Result, error) {
 		return s.db.ExecContext(ctx, `
 	    INSERT INTO metric_gauges (name, value)
 	    VALUES ($1, $2)
@@ -257,7 +258,7 @@ func (s *PostgresStorage) batchSetGauge(ctx context.Context, names []string, gau
 	    DO UPDATE SET value = EXCLUDED.value
 	`, strings.Join(positionalArguments, ","))
 
-	_, err := withRetry(ctx, 3, s.isRetriablePostgresError, func() (sql.Result, error) {
+	_, err := helpers.WithRetry(ctx, 3, s.isRetriablePostgresError, func() (sql.Result, error) {
 		return s.db.ExecContext(ctx, query, values...)
 	})
 	if err != nil {
@@ -291,7 +292,7 @@ func (s *PostgresStorage) batchIncrementCounters(ctx context.Context, names []st
 	    DO UPDATE SET value = metric_counters.value + EXCLUDED.value
 	`, strings.Join(positionalArguments, ","))
 
-	_, err := withRetry(ctx, 3, s.isRetriablePostgresError, func() (sql.Result, error) {
+	_, err := helpers.WithRetry(ctx, 3, s.isRetriablePostgresError, func() (sql.Result, error) {
 		return s.db.ExecContext(ctx, query, values...)
 	})
 	if err != nil {
@@ -301,7 +302,7 @@ func (s *PostgresStorage) batchIncrementCounters(ctx context.Context, names []st
 }
 func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	var value float64
-	_, err := withRetry(ctx, 3, s.isRetriablePostgresError, func() (struct{}, error) {
+	_, err := helpers.WithRetry(ctx, 3, s.isRetriablePostgresError, func() (struct{}, error) {
 		err := s.db.QueryRowContext(ctx, "SELECT value FROM metric_gauges WHERE name = $1", name).Scan(&value)
 		return struct{}{}, err
 	})
@@ -317,7 +318,7 @@ func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, e
 
 func (s *PostgresStorage) GetCounter(ctx context.Context, name string) (int64, error) {
 	var value int64
-	_, err := withRetry(ctx, 3, s.isRetriablePostgresError, func() (struct{}, error) {
+	_, err := helpers.WithRetry(ctx, 3, s.isRetriablePostgresError, func() (struct{}, error) {
 		err := s.db.QueryRowContext(ctx, "SELECT value FROM metric_counters WHERE name = $1", name).Scan(&value)
 		return struct{}{}, err
 	})

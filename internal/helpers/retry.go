@@ -1,4 +1,4 @@
-package repository
+package helpers
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func withRetry[T any](ctx context.Context, attempts int, isRetriable func(error) bool, fn func() (T, error)) (T, error) {
+func WithRetry[T any](ctx context.Context, attempts int, isRetriable func(error) bool, fn func() (T, error)) (T, error) {
 	var zero T
 	if attempts < 1 {
 		return zero, errors.New("attempts count must be positive")
