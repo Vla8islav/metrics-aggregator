@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"io"
 	"log"
 	"time"
 
@@ -9,39 +10,73 @@ import (
 )
 
 type Options struct {
-	ServerAddress  string                `env:"SERVER_ADDRESS"`
+	ServerAddress  OptionalString        `env:"ADDRESS"`
 	PollInterval   CustomSecondsDuration `env:"POLL_INTERVAL"`
 	ReportInterval CustomSecondsDuration `env:"REPORT_INTERVAL"`
+
+	StoreInterval   CustomSecondsDuration `env:"STORE_INTERVAL"`
+	FileStoragePath OptionalString        `env:"FILE_STORAGE_PATH"`
+	Restore         OptionalBool          `env:"RESTORE"`
 }
 
-var optionsInstance *Options
+func setOptionsTrue(options *Options) {
+	options.ServerAddress.BeenSet = true
+	options.PollInterval.BeenSet = true
+	options.ReportInterval.BeenSet = true
+	options.StoreInterval.BeenSet = true
+	options.FileStoragePath.BeenSet = true
+	options.Restore.BeenSet = true
 
-func ReadFlags() *Options {
-	if optionsInstance == nil {
-		cmdOptions := getCmdOptions()
-		envOptions := getEnvOptions()
+}
 
-		finalOptions := Options{}
-		// env options are the priority
-		mergeOptions(&finalOptions, envOptions)
-		mergeOptions(&finalOptions, cmdOptions)
-		optionsInstance = &finalOptions
+func ReadFlags(args []string) *Options {
+	cmdOptions, err := getCmdOptions(args)
+	if err != nil {
+		log.Fatalln(err)
 	}
-	return optionsInstance
+
+	envOptions := getEnvOptions()
+
+	finalOptions := Options{
+		ServerAddress:   OptionalString{Value: "localhost:8080", BeenSet: false},
+		PollInterval:    CustomSecondsDuration{Duration: time.Second * 2, BeenSet: false},
+		ReportInterval:  CustomSecondsDuration{Duration: time.Second * 10, BeenSet: false},
+		StoreInterval:   CustomSecondsDuration{Duration: time.Second * 300, BeenSet: false},
+		FileStoragePath: OptionalString{Value: "storage.dat", BeenSet: false},
+		Restore:         OptionalBool{Value: true, BeenSet: false},
+	}
+
+	// env options are the priority
+	mergeOptions(&finalOptions, cmdOptions)
+	mergeOptions(&finalOptions, envOptions)
+
+	setOptionsTrue(&finalOptions)
+	return &finalOptions
 }
 
 func mergeOptions(mergeInto *Options, newValues Options) {
-	// TODO: should rewrite it using reflect, probably
-	if mergeInto.ServerAddress == "" && newValues.ServerAddress != "" {
+	if newValues.ServerAddress.BeenSet {
 		mergeInto.ServerAddress = newValues.ServerAddress
 	}
 
-	if mergeInto.PollInterval.Duration == 0 && newValues.PollInterval.Duration != 0 {
+	if newValues.PollInterval.BeenSet {
 		mergeInto.PollInterval = newValues.PollInterval
 	}
 
-	if mergeInto.ReportInterval.Duration == 0 && newValues.ReportInterval.Duration != 0 {
+	if newValues.ReportInterval.BeenSet {
 		mergeInto.ReportInterval = newValues.ReportInterval
+	}
+
+	if newValues.StoreInterval.BeenSet {
+		mergeInto.StoreInterval = newValues.StoreInterval
+	}
+
+	if newValues.FileStoragePath.BeenSet {
+		mergeInto.FileStoragePath = newValues.FileStoragePath
+	}
+
+	if newValues.Restore.BeenSet {
+		mergeInto.Restore = newValues.Restore
 	}
 }
 
@@ -54,14 +89,27 @@ func getEnvOptions() Options {
 	return opt
 }
 
-func getCmdOptions() Options {
-	opt := Options{
-		ReportInterval: CustomSecondsDuration{10 * time.Second},
-		PollInterval:   CustomSecondsDuration{2 * time.Second},
+func getCmdOptions(args []string) (Options, error) {
+
+	opt := Options{}
+
+	fs := flag.NewFlagSet("metrics-aggregator", flag.ContinueOnError)
+	fs.SetOutput(io.Discard) // optional: silence flag errors in tests
+
+	fs.Var(&opt.ServerAddress, "a", "port on which the server should run")
+	fs.Var(&opt.ReportInterval, "r", "how often console utility should send metrics")
+	fs.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")
+
+	fs.Var(&opt.StoreInterval, "i", "интервал времени в секундах, по истечении которого"+
+		" текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)")
+	fs.Var(&opt.FileStoragePath, "f", "путь до файла, куда "+
+		"сохраняются текущие значения. Имя файла для значения по умолчанию придумайте сами.")
+	fs.Var(&opt.Restore, "t", "булево значение (true/false), определяющее, "+
+		"следует ли загружать ранее сохранённые значения из указанного файла при старте сервера")
+
+	if err := fs.Parse(args); err != nil {
+		return Options{}, err
 	}
-	flag.StringVar(&opt.ServerAddress, "a", "localhost:8080", "port on which the server should run")
-	flag.Var(&opt.ReportInterval, "r", "how often console utility should send metrics")
-	flag.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")
-	flag.Parse()
-	return opt
+
+	return opt, nil
 }

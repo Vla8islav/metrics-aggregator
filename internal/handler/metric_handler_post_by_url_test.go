@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -36,19 +37,19 @@ func TestPostMetrics(t *testing.T) {
 	}{
 		{
 			name: "gauge ok", vars: map[string]string{
-			"metricType":  string(Gauge),
-			"metricName":  defaultMetricName,
-			"metricValue": "1.124",
-		},
+				"metricType":  string(Gauge),
+				"metricName":  defaultMetricName,
+				"metricValue": "1.124",
+			},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
 		},
 		{
 			name: "counter ok", vars: map[string]string{
-			"metricType":  string(Counter),
-			"metricName":  defaultMetricName,
-			"metricValue": "1",
-		},
+				"metricType":  string(Counter),
+				"metricName":  defaultMetricName,
+				"metricValue": "1",
+			},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
 		},
@@ -113,7 +114,8 @@ func TestPostMetrics(t *testing.T) {
 
 			metricName := tt.vars["metricName"]
 
-			db := repository.NewMemStorage()
+			cfg := config.ReadFlags(nil)
+			db := repository.NewMemStorage(cfg)
 			h := NewHandler(db)
 			h.SetMetrics(rr, req)
 

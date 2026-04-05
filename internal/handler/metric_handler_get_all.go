@@ -19,6 +19,7 @@ func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/html")
 	// Laziest HTML page ever
 	_, err = w.Write([]byte("<HTML>"))
 	if err != nil {

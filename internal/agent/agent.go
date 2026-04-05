@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
+	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
@@ -73,14 +76,14 @@ func formatFloat(v float64) string {
 func (a *Agent) report(ctx context.Context) error {
 	// send gauges
 	for name, value := range a.gauges.GetGauges() {
-		if err := a.send(ctx, handler.Gauge, name, formatFloat(value)); err != nil {
+		if err := a.send(ctx, handler.Gauge, name, &value, nil); err != nil {
 			return err
 		}
 	}
 
 	// send counters
 	for name, value := range a.gauges.GetCounters() {
-		if err := a.send(ctx, handler.Counter, name, strconv.FormatInt(value, 10)); err != nil {
+		if err := a.send(ctx, handler.Counter, name, nil, &value); err != nil {
 			return err
 		}
 	}
@@ -88,7 +91,10 @@ func (a *Agent) report(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricName, metricValue string) error {
+func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricName string, gauge *float64, counter *int64) error {
+	if gauge == nil && counter == nil {
+		return fmt.Errorf("both gauge and counter are nil")
+	}
 	// POST http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 	base, err := url.Parse(a.serverAddr)
 	if err != nil {
@@ -98,16 +104,30 @@ func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricN
 	base.Path = path.Join(
 		base.Path,
 		"update",
-		string(metricType),
-		metricName,
-		metricValue,
 	)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), http.NoBody)
+	payload := models.Metrics{
+		ID:    metricName,
+		MType: string(metricType),
+		Delta: counter,
+		Value: gauge,
+	}
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "text/plain")
+	payloadBytesCompressed, err := helpers.GzipCompress(payloadBytes)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), bytes.NewReader(payloadBytesCompressed))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Accept-Encoding", "gzip")
 
 	resp, err := a.client.Do(req)
 	if err != nil {
@@ -116,7 +136,11 @@ func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricN
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("server returned %s for %s %s=%s", resp.Status, metricType, metricName, metricValue)
+		if gauge != nil {
+			return fmt.Errorf("server returned %s for %s %s=%f", resp.Status, metricType, metricName, *gauge)
+		}
+
+		return fmt.Errorf("server returned %s for %s %s=%v", resp.Status, metricType, metricName, *counter)
 	}
 	return nil
 }
