@@ -18,20 +18,20 @@ func (h *Handler) UpdateBatchMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Header.Get("Content-Type") != "application/json" {
-		writeBadRequest(w, "only application/json content type is supported")
+		h.writeBadRequest(w, "only application/json content type is supported")
 		return
 	}
 
 	requestBody, err := io.ReadAll(r.Body)
 	if err != nil {
-		writeBadRequest(w, "failed to read request body: "+err.Error())
+		h.writeBadRequest(w, "failed to read request body: "+err.Error())
 		return
 	}
 
 	var requestBodySerialised []models.Metrics
 	err = json.Unmarshal(requestBody, &requestBodySerialised)
 	if err != nil {
-		writeBadRequest(w, "couldn't parse requestBody with metrics :"+err.Error())
+		h.writeBadRequest(w, "couldn't parse requestBody with metrics :"+err.Error())
 		return
 	}
 	err = h.service.UpdateMetrics(r.Context(), requestBodySerialised)

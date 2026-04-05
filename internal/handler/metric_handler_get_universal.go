@@ -20,30 +20,30 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Header.Get("Content-Type") != "application/json" {
-		writeBadRequest(w, "only application/json content type is supported")
+		h.writeBadRequest(w, "only application/json content type is supported")
 		return
 	}
 
 	requestBody, err := io.ReadAll(r.Body)
 	if err != nil {
-		writeBadRequest(w, "failed to read request body: "+err.Error())
+		h.writeBadRequest(w, "failed to read request body: "+err.Error())
 		return
 	}
 
 	var requestBodySerialised models.Metrics
 	err = json.Unmarshal(requestBody, &requestBodySerialised)
 	if err != nil {
-		writeBadRequest(w, err.Error())
+		h.writeBadRequest(w, err.Error())
 		return
 	}
 
 	metricType := models.MetricType(requestBodySerialised.MType)
 	if _, found := models.ValidMetricTypes[metricType]; !found {
-		writeBadRequest(w, "invalid metric type: "+string(metricType))
+		h.writeBadRequest(w, "invalid metric type: "+string(metricType))
 		return
 	}
 	if requestBodySerialised.ID == "" {
-		writeBadRequest(w, "metric ID cannot be empty")
+		h.writeBadRequest(w, "metric ID cannot be empty")
 		return
 	}
 
