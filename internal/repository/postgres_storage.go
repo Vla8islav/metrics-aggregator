@@ -76,28 +76,11 @@ func NewPostgresStorage(config *config.Options, migrationsFolder string) (*Postg
 
 func (s *PostgresStorage) Ping(ctx context.Context) error {
 
-	if s.db == nil {
-		return errors.New("database pointer was nil")
-	}
-
 	// verify connection
 	if err := s.db.PingContext(ctx); err != nil {
 		return fmt.Errorf("couldn't ping postgres db: %w", err)
 	}
 
-	return nil
-}
-
-func (s *PostgresStorage) TruncateEverything() error {
-	if s.db == nil {
-		return errors.New("database pointer is nil")
-	}
-	_, err := s.db.Exec(`
-		TRUNCATE TABLE metric_counters, metric_gauges RESTART IDENTITY CASCADE
-	`)
-	if err != nil {
-		return fmt.Errorf("truncate metric tables: %w", err)
-	}
 	return nil
 }
 
