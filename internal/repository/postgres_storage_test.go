@@ -8,7 +8,8 @@ import (
 )
 
 func TestBatchSetGauge(t *testing.T) {
-	storage := newTestPostgresStorage(t)
+	storage := getTestStorage(t)
+
 	ctx := context.Background()
 
 	err := storage.batchSetGauge(ctx,
@@ -31,7 +32,8 @@ func TestBatchSetGauge(t *testing.T) {
 }
 
 func TestBatchSetGauge_UpdateExisting(t *testing.T) {
-	storage := newTestPostgresStorage(t)
+	storage := getTestStorage(t)
+
 	ctx := context.Background()
 
 	err := storage.batchSetGauge(ctx,
@@ -52,7 +54,7 @@ func TestBatchSetGauge_UpdateExisting(t *testing.T) {
 }
 
 func TestBatchSetGauge_LengthMismatch(t *testing.T) {
-	storage := newTestPostgresStorage(t)
+	storage := getTestStorage(t)
 	ctx := context.Background()
 
 	err := storage.batchSetGauge(ctx,
@@ -64,7 +66,7 @@ func TestBatchSetGauge_LengthMismatch(t *testing.T) {
 }
 
 func TestBatchSetGauge_Empty(t *testing.T) {
-	storage := newTestPostgresStorage(t)
+	storage := getTestStorage(t)
 	ctx := context.Background()
 
 	err := storage.batchSetGauge(ctx, nil, nil)
@@ -72,7 +74,7 @@ func TestBatchSetGauge_Empty(t *testing.T) {
 }
 
 func TestBatchIncrementCounters(t *testing.T) {
-	storage := newTestPostgresStorage(t)
+	storage := getTestStorage(t)
 	ctx := context.Background()
 
 	err := storage.batchIncrementCounters(ctx,
@@ -95,7 +97,7 @@ func TestBatchIncrementCounters(t *testing.T) {
 }
 
 func TestBatchIncrementCounters_UpdateExisting(t *testing.T) {
-	storage := newTestPostgresStorage(t)
+	storage := getTestStorage(t)
 	ctx := context.Background()
 
 	err := storage.batchIncrementCounters(ctx,
@@ -124,7 +126,7 @@ func TestBatchIncrementCounters_UpdateExisting(t *testing.T) {
 }
 
 func TestBatchIncrementCounters_LengthMismatch(t *testing.T) {
-	storage := newTestPostgresStorage(t)
+	storage := getTestStorage(t)
 	ctx := context.Background()
 
 	err := storage.batchIncrementCounters(ctx,
@@ -137,18 +139,9 @@ func TestBatchIncrementCounters_LengthMismatch(t *testing.T) {
 }
 
 func TestBatchIncrementCounters_Empty(t *testing.T) {
-	storage := newTestPostgresStorage(t)
+	storage := getTestStorage(t)
 	ctx := context.Background()
 
 	err := storage.batchIncrementCounters(ctx, nil, nil)
 	require.NoError(t, err)
-}
-
-func newTestPostgresStorage(t *testing.T) *PostgresStorage {
-	t.Helper()
-
-	err := testStorage.TruncateEverything()
-	require.NoError(t, err)
-
-	return testStorage
 }
