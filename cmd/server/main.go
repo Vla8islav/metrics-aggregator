@@ -54,7 +54,8 @@ func main() {
 	srvImpl := &http.Server{Addr: currentConfig.ServerAddress.Value,
 		Handler:      handlerWithMW,
 		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second}
+		WriteTimeout: 5 * time.Second,
+	}
 
 	err = srvImpl.ListenAndServe()
 	if err != nil {
