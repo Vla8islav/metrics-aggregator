@@ -15,8 +15,6 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 )
 
-var testStorage *PostgresStorage
-
 func TestMain(m *testing.M) {
 	os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
 
@@ -52,7 +50,7 @@ func TestMain(m *testing.M) {
 	cfg.DatabaseDSN.Value = dsn
 	cfg.DatabaseDSN.BeenSet = true
 
-	testStorage, err = NewPostgresStorage(cfg, "../../migrations")
+	_, err = NewPostgresStorage(cfg, "../../migrations")
 	if err != nil {
 		log.Fatalf("failed to create storage: %v", err)
 	}

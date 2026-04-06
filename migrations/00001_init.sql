@@ -1,13 +1,13 @@
 -- +goose Up
 CREATE TABLE metric_gauges
 (
-    name  TEXT PRIMARY KEY,
+    name  VARCHAR(256) PRIMARY KEY,
     value DOUBLE PRECISION NOT NULL
 );
 
 CREATE TABLE metric_counters
 (
-    name  TEXT PRIMARY KEY,
+    name  VARCHAR(256) PRIMARY KEY,
     value BIGINT NOT NULL
 );
 
