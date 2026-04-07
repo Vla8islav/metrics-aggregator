@@ -27,7 +27,7 @@ func main() {
 	logger.Info("starting server ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	var db domain.MetricRepository
-	db, err = repository.NewPostgresStorage(currentConfig, "./migrations")
+	db, err = repository.NewPostgresStorage(currentConfig, currentConfig.MigrationsFolder.Value)
 	if err != nil {
 		logger.Error("failed to initialize database, falling back to the in-memory db", zap.Error(err))
 		dbInMemory := repository.NewMemStorage(currentConfig)

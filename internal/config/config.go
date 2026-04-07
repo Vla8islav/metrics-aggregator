@@ -18,7 +18,8 @@ type Options struct {
 	FileStoragePath OptionalString        `env:"FILE_STORAGE_PATH"`
 	Restore         OptionalBool          `env:"RESTORE"`
 
-	DatabaseDSN OptionalString `env:"DATABASE_DSN"`
+	DatabaseDSN      OptionalString `env:"DATABASE_DSN"`
+	MigrationsFolder OptionalString `env:"MIGRATIONS_FOLDER"`
 }
 
 func setOptionsTrue(options *Options) {
@@ -29,6 +30,7 @@ func setOptionsTrue(options *Options) {
 	options.FileStoragePath.BeenSet = true
 	options.Restore.BeenSet = true
 	options.DatabaseDSN.BeenSet = true
+	options.MigrationsFolder.BeenSet = true
 
 }
 
@@ -41,13 +43,14 @@ func ReadFlags(args []string) *Options {
 	envOptions := getEnvOptions()
 
 	finalOptions := Options{
-		ServerAddress:   OptionalString{Value: "localhost:8080", BeenSet: false},
-		PollInterval:    CustomSecondsDuration{Duration: time.Second * 2, BeenSet: false},
-		ReportInterval:  CustomSecondsDuration{Duration: time.Second * 10, BeenSet: false},
-		StoreInterval:   CustomSecondsDuration{Duration: time.Second * 300, BeenSet: false},
-		FileStoragePath: OptionalString{Value: "storage.dat", BeenSet: false},
-		DatabaseDSN:     OptionalString{Value: "postgres://default_user:default_password@localhost:5432/metrics_db?sslmode=disable", BeenSet: false},
-		Restore:         OptionalBool{Value: true, BeenSet: false},
+		ServerAddress:    OptionalString{Value: "localhost:8080", BeenSet: false},
+		PollInterval:     CustomSecondsDuration{Duration: time.Second * 2, BeenSet: false},
+		ReportInterval:   CustomSecondsDuration{Duration: time.Second * 10, BeenSet: false},
+		StoreInterval:    CustomSecondsDuration{Duration: time.Second * 300, BeenSet: false},
+		FileStoragePath:  OptionalString{Value: "storage.dat", BeenSet: false},
+		DatabaseDSN:      OptionalString{Value: "postgres://default_user:default_password@localhost:5432/metrics_db?sslmode=disable", BeenSet: false},
+		MigrationsFolder: OptionalString{Value: "./migrations", BeenSet: false},
+		Restore:          OptionalBool{Value: true, BeenSet: false},
 	}
 
 	// env options are the priority
@@ -86,6 +89,10 @@ func mergeOptions(mergeInto *Options, newValues Options) {
 	if newValues.DatabaseDSN.BeenSet {
 		mergeInto.DatabaseDSN = newValues.DatabaseDSN
 	}
+
+	if newValues.MigrationsFolder.BeenSet {
+		mergeInto.MigrationsFolder = newValues.MigrationsFolder
+	}
 }
 
 func getEnvOptions() Options {
@@ -115,6 +122,7 @@ func getServerOptions(args []string) (Options, error) {
 	fs.Var(&opt.Restore, "e", "булево значение (true/false), определяющее, "+
 		"следует ли загружать ранее сохранённые значения из указанного файла при старте сервера")
 	fs.Var(&opt.DatabaseDSN, "d", "connection string/dsn для postgres базы данных")
+	fs.Var(&opt.DatabaseDSN, "m", "относительный путь до миграций, например ./migrations")
 
 	if err := fs.Parse(args); err != nil {
 		return Options{}, err
