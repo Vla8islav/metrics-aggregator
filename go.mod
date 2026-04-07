@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/gorilla/mux v1.8.1
+	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/pressly/goose/v3 v3.27.0

@@ -147,7 +147,7 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	// POST http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 	base, err := url.Parse(a.serverAddr)
 	if err != nil {
-		return err
+		return fmt.Errorf("couldn't parse server addr: %w", err)
 	}
 
 	base.Path = path.Join(
@@ -157,11 +157,11 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 
 	payloadBytes, err := json.Marshal(metrics)
 	if err != nil {
-		return err
+		return fmt.Errorf("couldn't marshal metrics payload: %w", err)
 	}
 	payloadBytesCompressed, err := helpers.GzipCompress(payloadBytes)
 	if err != nil {
-		return err
+		return fmt.Errorf("couldn't compress metrics payload: %w", err)
 	}
 
 	resp, err := helpers.WithRetry(ctx, 1,
@@ -187,7 +187,7 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 		})
 
 	if err != nil {
-		return err
+		return fmt.Errorf("couldn't make a request: %w", err)
 	}
 
 	defer resp.Body.Close()
