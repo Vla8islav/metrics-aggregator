@@ -208,11 +208,6 @@ func (s *PostgresStorage) SetGauge(ctx context.Context, name string, gauge float
 }
 
 func (s *PostgresStorage) setGaugeTx(ctx context.Context, tx *sql.Tx, name string, gauge float64) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
 	_, err := tx.ExecContext(ctx, `
 	    INSERT INTO metric_gauges (name, value)
 	    VALUES ($1, $2)
@@ -244,17 +239,23 @@ func (s *PostgresStorage) batchSetGauge(ctx context.Context, names []string, gau
 		values = append(values, name, gaugeValue)
 	}
 
+	return s.withRetryTx(ctx,
+		func(tx *sql.Tx) error { return s.batchSetGaugeTx(ctx, tx, positionalArguments, values) },
+	)
+}
+
+func (s *PostgresStorage) batchSetGaugeTx(ctx context.Context,
+	tx *sql.Tx,
+	positionalArguments []string,
+	values []interface{}) error {
 	query := fmt.Sprintf(`INSERT INTO metric_gauges (name, value) 
 	    VALUES %s
 	    ON CONFLICT (name)
 	    DO UPDATE SET value = EXCLUDED.value
 	`, strings.Join(positionalArguments, ","))
-
-	_, err := helpers.WithRetry(ctx, 3, s.isRetriablePostgresError, func() (sql.Result, error) {
-		return s.db.ExecContext(ctx, query, values...)
-	})
+	_, err := tx.ExecContext(ctx, query, values...)
 	if err != nil {
-		return fmt.Errorf("set gauge batch failed %v: %w", names, err)
+		return fmt.Errorf("set gauge batch failed %v: %w", positionalArguments, err)
 	}
 	return nil
 }
