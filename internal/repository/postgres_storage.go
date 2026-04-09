@@ -123,30 +123,35 @@ func (s *PostgresStorage) GetAll(ctx context.Context) (models.MetricsExport, err
 }
 
 func (s *PostgresStorage) getCounters(ctx context.Context) (map[string]int64, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT name, value FROM metric_counters")
+	countersFinal := make(map[string]int64)
+	err := s.withRetry(ctx, func() error {
+		counters := make(map[string]int64)
+		rows, err := s.db.QueryContext(ctx, "SELECT name, value FROM metric_counters")
+		if err != nil {
+			return fmt.Errorf("querying counters: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var name string
+			var value int64
+
+			if err = rows.Scan(&name, &value); err != nil {
+				return err
+			}
+			counters[name] = value
+		}
+		if err = rows.Err(); err != nil {
+			return err
+		}
+		countersFinal = counters
+		return nil
+	})
 	if err != nil {
-		if s.isRetriablePostgresError(err) {
-			return nil, fmt.Errorf("getting all counters failed retryable: %w", err)
-		}
-
-		return nil, fmt.Errorf("getting all counters failed: %w", err)
+		return nil, fmt.Errorf("querying counters: %w", err)
 	}
-	defer rows.Close()
 
-	counters := make(map[string]int64)
-	for rows.Next() {
-		var name string
-		var value int64
-
-		if err = rows.Scan(&name, &value); err != nil {
-			return nil, err
-		}
-		counters[name] = value
-	}
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-	return counters, nil
+	return countersFinal, nil
 }
 
 func (s *PostgresStorage) getGauges(ctx context.Context) (map[string]float64, error) {
@@ -293,6 +298,7 @@ func (s *PostgresStorage) batchIncrementCounters(ctx context.Context, names []st
 	}
 	return nil
 }
+
 func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	var value float64
 	_, err := helpers.WithRetry(ctx, 3, s.isRetriablePostgresError, func() (struct{}, error) {
