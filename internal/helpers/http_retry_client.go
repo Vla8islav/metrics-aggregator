@@ -13,21 +13,23 @@ type HTTPDoRequester interface {
 type HTTPRetryClient struct {
 	client HTTPDoRequester
 
-	MaxAttempts  int
-	AttemptDelay time.Duration
+	maxAttempts  int
+	attemptDelay time.Duration
+	timeout      time.Duration
 
 	shouldRetryOnStatus func(statusCode int) bool
 }
 
-func NewHTTPRetryClient(shouldRetryOnStatus func(int) bool) *HTTPRetryClient {
+func NewHTTPRetryClient(shouldRetryOnStatus func(int) bool, timeout time.Duration, maxAttempts int) *HTTPRetryClient {
 	if shouldRetryOnStatus == nil {
-		shouldRetryOnStatus = defaultShouldRetryStatus
+		shouldRetryOnStatus = DefaultShouldRetryStatus
 	}
-	return &HTTPRetryClient{client: &http.Client{}, MaxAttempts: 1,
-		shouldRetryOnStatus: shouldRetryOnStatus}
+	return &HTTPRetryClient{client: &http.Client{Timeout: timeout}, maxAttempts: maxAttempts,
+		shouldRetryOnStatus: shouldRetryOnStatus,
+		timeout:             timeout}
 }
 
-func defaultShouldRetryStatus(statusCode int) bool {
+func DefaultShouldRetryStatus(statusCode int) bool {
 	switch statusCode {
 	case http.StatusTooManyRequests,
 		http.StatusBadGateway,
@@ -44,7 +46,7 @@ func (c *HTTPRetryClient) Do(req *http.Request) (*http.Response, error) {
 	var resp *http.Response
 	var doErr error
 
-	for attempt := 1; attempt <= c.MaxAttempts; attempt++ {
+	for attempt := 1; attempt <= c.maxAttempts; attempt++ {
 		// reset the request body
 		if req.GetBody != nil {
 			body, getBodyErr := req.GetBody()
@@ -58,21 +60,21 @@ func (c *HTTPRetryClient) Do(req *http.Request) (*http.Response, error) {
 		if doErr == nil {
 			shouldRetryStatus := c.shouldRetryOnStatus
 			if shouldRetryStatus == nil {
-				shouldRetryStatus = defaultShouldRetryStatus
+				shouldRetryStatus = DefaultShouldRetryStatus
 			}
 
-			if !shouldRetryStatus(resp.StatusCode) || attempt >= c.MaxAttempts {
+			if !shouldRetryStatus(resp.StatusCode) || attempt >= c.maxAttempts {
 				return resp, nil
 			}
 
 			_, _ = io.Copy(io.Discard, resp.Body)
 			_ = resp.Body.Close()
 
-		} else if attempt >= c.MaxAttempts {
+		} else if attempt >= c.maxAttempts {
 			return resp, doErr
 		}
 
-		timer := time.NewTimer(c.AttemptDelay)
+		timer := time.NewTimer(c.attemptDelay)
 		select {
 		case <-req.Context().Done():
 			if !timer.Stop() {

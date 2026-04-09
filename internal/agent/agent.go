@@ -15,7 +15,7 @@ import (
 )
 
 type Agent struct {
-	client         *http.Client
+	client         *helpers.HTTPRetryClient
 	serverAddr     string
 	pollInterval   time.Duration
 	reportInterval time.Duration
@@ -25,10 +25,10 @@ type Agent struct {
 
 func NewAgent(serverAddr string, pollInterval, reportInterval time.Duration) *Agent {
 	s := models.NewStats()
+	retryClient := helpers.NewHTTPRetryClient(helpers.DefaultShouldRetryStatus,
+		5*time.Second, 2)
 	return &Agent{
-		client: &http.Client{
-			Timeout: 5 * time.Second,
-		},
+		client:         retryClient,
 		serverAddr:     serverAddr,
 		pollInterval:   pollInterval,
 		reportInterval: reportInterval,
@@ -164,27 +164,17 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 		return fmt.Errorf("couldn't compress metrics payload: %w", err)
 	}
 
-	resp, err := helpers.WithRetry(ctx, 1,
-		func(err error) bool { return err != nil },
-		func() (*http.Response, error) {
-			req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-				base.String(), bytes.NewReader(payloadBytesCompressed))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		base.String(), bytes.NewReader(payloadBytesCompressed))
 
-			if err != nil {
-				return nil, err
-			}
-			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("Content-Encoding", "gzip")
-			req.Header.Set("Accept-Encoding", "gzip")
+	if err != nil {
+		return fmt.Errorf("couldn't build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Accept-Encoding", "gzip")
 
-			resp, err := a.client.Do(req)
-
-			if err != nil {
-				return nil, err
-			}
-
-			return resp, nil
-		})
+	resp, err := a.client.Do(req)
 
 	if err != nil {
 		return fmt.Errorf("couldn't make a request: %w", err)

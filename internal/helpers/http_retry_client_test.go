@@ -39,9 +39,9 @@ func TestHTTPRetryClient_Do_SuccessOnFirstAttempt(t *testing.T) {
 				return newResponse(http.StatusOK, "ok"), nil
 			},
 		},
-		MaxAttempts:         3,
-		AttemptDelay:        0,
-		shouldRetryOnStatus: defaultShouldRetryStatus,
+		maxAttempts:         3,
+		attemptDelay:        0,
+		shouldRetryOnStatus: DefaultShouldRetryStatus,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
@@ -67,9 +67,9 @@ func TestHTTPRetryClient_Do_RetriesOnRetriableStatusThenSucceeds(t *testing.T) {
 				return newResponse(http.StatusOK, "ok"), nil
 			},
 		},
-		MaxAttempts:         3,
-		AttemptDelay:        0,
-		shouldRetryOnStatus: defaultShouldRetryStatus,
+		maxAttempts:         3,
+		attemptDelay:        0,
+		shouldRetryOnStatus: DefaultShouldRetryStatus,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
@@ -92,9 +92,9 @@ func TestHTTPRetryClient_Do_ReturnsLastRetriableStatusOnLastAttempt(t *testing.T
 				return newResponse(http.StatusServiceUnavailable, "still failing"), nil
 			},
 		},
-		MaxAttempts:         3,
-		AttemptDelay:        0,
-		shouldRetryOnStatus: defaultShouldRetryStatus,
+		maxAttempts:         3,
+		attemptDelay:        0,
+		shouldRetryOnStatus: DefaultShouldRetryStatus,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
@@ -117,9 +117,9 @@ func TestHTTPRetryClientDoesNotRetryOnNonRetriableStatus(t *testing.T) {
 				return newResponse(http.StatusBadRequest, "bad request"), nil
 			},
 		},
-		MaxAttempts:         3,
-		AttemptDelay:        0,
-		shouldRetryOnStatus: defaultShouldRetryStatus,
+		maxAttempts:         3,
+		attemptDelay:        0,
+		shouldRetryOnStatus: DefaultShouldRetryStatus,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
@@ -146,9 +146,9 @@ func TestHTTPRetryClientRetriesOnErrorThenSucceeds(t *testing.T) {
 				return newResponse(http.StatusOK, "ok"), nil
 			},
 		},
-		MaxAttempts:         3,
-		AttemptDelay:        0,
-		shouldRetryOnStatus: defaultShouldRetryStatus,
+		maxAttempts:         3,
+		attemptDelay:        0,
+		shouldRetryOnStatus: DefaultShouldRetryStatus,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
@@ -172,9 +172,9 @@ func TestHTTPRetryClientReturnsErrorOnLastAttempt(t *testing.T) {
 				return nil, wantErr
 			},
 		},
-		MaxAttempts:         3,
-		AttemptDelay:        0,
-		shouldRetryOnStatus: defaultShouldRetryStatus,
+		maxAttempts:         3,
+		attemptDelay:        0,
+		shouldRetryOnStatus: DefaultShouldRetryStatus,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
@@ -199,8 +199,8 @@ func TestHTTPRetryClientUsesDefaultRetryStatusWhenNil(t *testing.T) {
 				return newResponse(http.StatusOK, "ok"), nil
 			},
 		},
-		MaxAttempts:         3,
-		AttemptDelay:        0,
+		maxAttempts:         3,
+		attemptDelay:        0,
 		shouldRetryOnStatus: nil,
 	}
 
@@ -233,9 +233,9 @@ func TestHTTPRetryClientRecreatesBodyBetweenAttempts(t *testing.T) {
 				return newResponse(http.StatusOK, "ok"), nil
 			},
 		},
-		MaxAttempts:         3,
-		AttemptDelay:        0,
-		shouldRetryOnStatus: defaultShouldRetryStatus,
+		maxAttempts:         3,
+		attemptDelay:        0,
+		shouldRetryOnStatus: DefaultShouldRetryStatus,
 	}
 
 	bodyBytes := []byte("payload")
@@ -260,9 +260,9 @@ func TestHTTPRetryClientReturnsGetBodyError(t *testing.T) {
 				return nil, nil
 			},
 		},
-		MaxAttempts:         3,
-		AttemptDelay:        0,
-		shouldRetryOnStatus: defaultShouldRetryStatus,
+		maxAttempts:         3,
+		attemptDelay:        0,
+		shouldRetryOnStatus: DefaultShouldRetryStatus,
 	}
 
 	req, err := http.NewRequest(http.MethodPost, "http://example.com", bytes.NewReader([]byte("payload")))
@@ -288,9 +288,9 @@ func TestHTTPRetryClientStopsOnContextCancellationDuringDelay(t *testing.T) {
 				return newResponse(http.StatusServiceUnavailable, "retry"), nil
 			},
 		},
-		MaxAttempts:         3,
-		AttemptDelay:        time.Second,
-		shouldRetryOnStatus: defaultShouldRetryStatus,
+		maxAttempts:         3,
+		attemptDelay:        time.Second,
+		shouldRetryOnStatus: DefaultShouldRetryStatus,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
