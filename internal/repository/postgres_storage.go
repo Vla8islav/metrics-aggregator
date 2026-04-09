@@ -202,14 +202,23 @@ func (s *PostgresStorage) SetGauge(ctx context.Context, name string, gauge float
 		return ctx.Err()
 	default:
 	}
-	_, err := helpers.WithRetry(ctx, 3, s.isRetriablePostgresError, func() (sql.Result, error) {
-		return s.db.ExecContext(ctx, `
+	return s.withRetryTx(ctx, func(tx *sql.Tx) error {
+		return s.setGaugeTx(ctx, tx, name, gauge)
+	})
+}
+
+func (s *PostgresStorage) setGaugeTx(ctx context.Context, tx *sql.Tx, name string, gauge float64) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+	_, err := tx.ExecContext(ctx, `
 	    INSERT INTO metric_gauges (name, value)
 	    VALUES ($1, $2)
 	    ON CONFLICT (name)
 	    DO UPDATE SET value = EXCLUDED.value
 	`, name, gauge)
-	})
 	if err != nil {
 		return fmt.Errorf("set gauge failed %s: %w", name, err)
 	}
