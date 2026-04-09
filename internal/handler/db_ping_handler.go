@@ -24,7 +24,7 @@ func (h *Handler) DBPing(w http.ResponseWriter, r *http.Request) {
 			zap.String("method", r.Method),
 			zap.String("path", r.URL.Path),
 		)
-		http.Error(w, "database is unavailable", http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
