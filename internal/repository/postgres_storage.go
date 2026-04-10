@@ -93,10 +93,6 @@ func (s *PostgresStorage) Restore(ctx context.Context) error {
 	return nil
 }
 
-func (s *PostgresStorage) RunSaver(_ context.Context) error {
-	return nil
-}
-
 func (s *PostgresStorage) GetAll(ctx context.Context) (models.MetricsExport, error) {
 	select {
 	case <-ctx.Done():
@@ -325,18 +321,6 @@ func (s *PostgresStorage) GetCounter(ctx context.Context, name string) (int64, e
 
 	return value, nil
 
-}
-
-func (s *PostgresStorage) SaveState(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
-
-	// here save is handled by the DB
-
-	return nil
 }
 
 func (s *PostgresStorage) LoadState(ctx context.Context) error {

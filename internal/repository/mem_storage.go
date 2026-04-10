@@ -50,7 +50,7 @@ func (s *MemoryStorage) RunSaver(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case <-fileSaveTicker.C:
-				err := s.SaveState(ctx)
+				err := s.saveState(ctx)
 				if err != nil {
 					log.Printf("failed to save state: %v", err)
 				}
@@ -110,7 +110,7 @@ func (s *MemoryStorage) IncrementCounter(ctx context.Context, name string, numbe
 
 func (s *MemoryStorage) saveIfImmediateSaveIsSet(ctx context.Context) error {
 	if s.config.Restore.Value && s.config.StoreInterval.Duration == 0 {
-		err := s.SaveState(ctx)
+		err := s.saveState(ctx)
 		if err != nil {
 			return err
 		}
@@ -164,7 +164,7 @@ func (s *MemoryStorage) GetCounter(ctx context.Context, name string) (int64, err
 	return value, nil
 }
 
-func (s *MemoryStorage) SaveState(ctx context.Context) error {
+func (s *MemoryStorage) saveState(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()

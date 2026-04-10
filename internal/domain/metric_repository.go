@@ -18,6 +18,5 @@ type MetricRepository interface {
 	GetGauge(ctx context.Context, name string) (float64, error)
 	GetAll(ctx context.Context) (models.MetricsExport, error)
 
-	SaveState(ctx context.Context) error
 	LoadState(ctx context.Context) error
 }
