@@ -26,10 +26,24 @@ func main() {
 	logger.Info("starting server ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	var db domain.MetricRepository
-	db, err = repository.NewPostgresStorage(currentConfig, currentConfig.MigrationsFolder.Value)
-	if err != nil {
-		logger.Fatal("failed to initialize metrics repository", zap.Error(err))
-		return
+	if currentConfig.Restore.BeenSet && currentConfig.Restore.Value {
+		db, err = repository.NewPostgresStorage(currentConfig, currentConfig.MigrationsFolder.Value)
+		if err != nil {
+			logger.Fatal("failed to initialize metrics repository", zap.Error(err))
+			return
+		}
+	} else {
+		logger.Info("using in-memory db because the restore flag is false")
+		dbInMemory := repository.NewMemStorage(currentConfig)
+		//ctx, cancel := context.WithCancel(context.Background())
+		//defer cancel()
+		//go dbInMemory.RunSaver(ctx)
+		//err = dbInMemory.Restore(ctx)
+		//if err != nil {
+		//	logger.Fatal("failed to restore database", zap.Error(err))
+		//}
+		db = dbInMemory
+
 	}
 
 	srvApp := service.NewMetricsService(db)
