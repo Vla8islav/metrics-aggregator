@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -63,8 +64,7 @@ func getDB(currentConfig *config.Options, logger *zap.Logger) (domain.MetricRepo
 	if currentConfig.DatabaseDSN.BeenSet {
 		db, err = repository.NewPostgresStorage(currentConfig, currentConfig.MigrationsFolder.Value)
 		if err != nil {
-			logger.Fatal("failed to initialize metrics repository", zap.Error(err))
-			return nil, nil
+			return nil, fmt.Errorf("failed to initialize metrics repository: %w", err)
 		}
 	} else if !currentConfig.Restore.BeenSet || !currentConfig.Restore.Value {
 		logger.Info("making a fresh in-memory DB because the restore flag is false")
@@ -77,13 +77,12 @@ func getDB(currentConfig *config.Options, logger *zap.Logger) (domain.MetricRepo
 		go dbInMemory.RunSaver(ctx)
 		err = dbInMemory.Restore(ctx)
 		if err != nil {
-			logger.Fatal("failed to restore database", zap.Error(err))
+			return nil, fmt.Errorf("failed to restore database")
 		}
 		db = dbInMemory
 	} else {
-		logger.Fatal("something strange happened: " +
-			"restore and connection string parameters are incorrect. Exiting...")
-		return nil, nil
+		return nil, fmt.Errorf("something strange happened: " +
+			"restore and connection string parameters are incorrect")
 	}
 	return db, err
 }
