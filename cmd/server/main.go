@@ -33,7 +33,7 @@ func main() {
 			logger.Fatal("failed to initialize metrics repository", zap.Error(err))
 			return
 		}
-	} else if !currentConfig.Restore.BeenSet {
+	} else if !currentConfig.Restore.BeenSet || !currentConfig.Restore.Value {
 		logger.Info("making a fresh in-memory DB because the restore flag is false")
 		db = repository.NewMemStorage(currentConfig)
 	} else if currentConfig.Restore.Value {
