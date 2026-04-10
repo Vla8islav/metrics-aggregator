@@ -10,6 +10,7 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
+// Options TODO: implement a clean option separation
 type Options struct {
 	ServerAddress  OptionalString        `env:"ADDRESS"`
 	PollInterval   CustomSecondsDuration `env:"POLL_INTERVAL"`
@@ -21,18 +22,6 @@ type Options struct {
 
 	DatabaseDSN      OptionalString `env:"DATABASE_DSN"`
 	MigrationsFolder OptionalString `env:"MIGRATIONS_FOLDER"`
-}
-
-func setOptionsTrue(options *Options) {
-	options.ServerAddress.BeenSet = true
-	options.PollInterval.BeenSet = true
-	options.ReportInterval.BeenSet = true
-	options.StoreInterval.BeenSet = true
-	options.FileStoragePath.BeenSet = true
-	options.Restore.BeenSet = true
-	options.DatabaseDSN.BeenSet = true
-	options.MigrationsFolder.BeenSet = true
-
 }
 
 func logSetFlags(options Options) {
