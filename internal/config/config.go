@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"time"
@@ -34,13 +35,105 @@ func setOptionsTrue(options *Options) {
 
 }
 
+func logSetFlags(options Options) {
+	var setFlags []string
+
+	if options.ServerAddress.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-a=%s", options.ServerAddress.Value))
+	}
+
+	if options.ReportInterval.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-r=%s", options.ReportInterval.Duration))
+	}
+
+	if options.PollInterval.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-p=%s", options.PollInterval.Duration))
+	}
+
+	if options.StoreInterval.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-i=%s", options.StoreInterval.Duration))
+	}
+
+	if options.FileStoragePath.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-f=%s", options.FileStoragePath.Value))
+	}
+
+	if options.Restore.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-e=%t", options.Restore.Value))
+	}
+
+	if options.DatabaseDSN.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-d=%s", options.DatabaseDSN.Value))
+	}
+
+	if options.MigrationsFolder.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-m=%s", options.MigrationsFolder.Value))
+	}
+
+	if len(setFlags) == 0 {
+		log.Println("no command-line flags were set")
+		return
+	}
+
+	for _, flagValue := range setFlags {
+		log.Printf("command-line flag set: %s", flagValue)
+	}
+}
+
+func logSetEnv(options Options) {
+	var setEnv []string
+
+	if options.ServerAddress.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("ADDRESS=%s", options.ServerAddress.Value))
+	}
+
+	if options.ReportInterval.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("REPORT_INTERVAL=%s", options.ReportInterval.Duration))
+	}
+
+	if options.PollInterval.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("POLL_INTERVAL=%s", options.PollInterval.Duration))
+	}
+
+	if options.StoreInterval.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("STORE_INTERVAL=%s", options.StoreInterval.Duration))
+	}
+
+	if options.FileStoragePath.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("FILE_STORAGE_PATH=%s", options.FileStoragePath.Value))
+	}
+
+	if options.Restore.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("RESTORE=%t", options.Restore.Value))
+	}
+
+	if options.DatabaseDSN.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("DATABASE_DSN=%s", options.DatabaseDSN.Value))
+	}
+
+	if options.MigrationsFolder.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("MIGRATIONS_FOLDER=%s", options.MigrationsFolder.Value))
+	}
+
+	if len(setEnv) == 0 {
+		log.Println("no environment variables were set")
+		return
+	}
+
+	for _, envValue := range setEnv {
+		log.Printf("environment variable set: %s", envValue)
+	}
+}
+
 func ReadFlags(args []string) *Options {
 	cmdOptions, err := getServerOptions(args)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	logSetFlags(*cmdOptions)
 
 	envOptions := getEnvOptions()
+	logSetEnv(envOptions)
 
 	finalOptions := Options{
 		ServerAddress:    OptionalString{Value: "localhost:8080", BeenSet: false},
@@ -54,7 +147,7 @@ func ReadFlags(args []string) *Options {
 	}
 
 	// env options are the priority
-	mergeOptions(&finalOptions, cmdOptions)
+	mergeOptions(&finalOptions, *cmdOptions)
 	mergeOptions(&finalOptions, envOptions)
 
 	setOptionsTrue(&finalOptions)
@@ -104,9 +197,9 @@ func getEnvOptions() Options {
 	return opt
 }
 
-func getServerOptions(args []string) (Options, error) {
+func getServerOptions(args []string) (*Options, error) {
 
-	opt := Options{}
+	opt := &Options{}
 
 	fs := flag.NewFlagSet("metrics-aggregator", flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // optional: silence flag errors in tests
@@ -122,10 +215,10 @@ func getServerOptions(args []string) (Options, error) {
 	fs.Var(&opt.Restore, "e", "булево значение (true/false), определяющее, "+
 		"следует ли загружать ранее сохранённые значения из указанного файла при старте сервера")
 	fs.Var(&opt.DatabaseDSN, "d", "connection string/dsn для postgres базы данных")
-	fs.Var(&opt.DatabaseDSN, "m", "относительный путь до миграций, например ./migrations")
+	fs.Var(&opt.MigrationsFolder, "m", "относительный путь до миграций, например ./migrations")
 
 	if err := fs.Parse(args); err != nil {
-		return Options{}, err
+		return nil, err
 	}
 
 	return opt, nil

@@ -28,7 +28,8 @@ func main() {
 	var db domain.MetricRepository
 	db, err = repository.NewPostgresStorage(currentConfig, currentConfig.MigrationsFolder.Value)
 	if err != nil {
-		logger.Fatal("failed to initialize metrics repository", zap.Error(err))
+		logger.Fatal("failed to initialize metrics repository", zap.Error(err),
+			zap.String("flags", strings os.Args[1:]))
 		return
 	}
 
