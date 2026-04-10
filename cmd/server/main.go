@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -26,24 +27,30 @@ func main() {
 	logger.Info("starting server ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	var db domain.MetricRepository
-	if currentConfig.Restore.Value && currentConfig.DatabaseDSN.BeenSet {
+	if currentConfig.DatabaseDSN.BeenSet {
 		db, err = repository.NewPostgresStorage(currentConfig, currentConfig.MigrationsFolder.Value)
 		if err != nil {
 			logger.Fatal("failed to initialize metrics repository", zap.Error(err))
 			return
 		}
-	} else {
-		logger.Info("using in-memory db because the restore flag is false")
+	} else if !currentConfig.Restore.BeenSet {
+		logger.Info("making a fresh in-memory DB because the restore flag is false")
+		db = repository.NewMemStorage(currentConfig)
+	} else if currentConfig.Restore.Value {
+		logger.Info("trying to load data from file into the in-memory DB")
 		dbInMemory := repository.NewMemStorage(currentConfig)
-		//ctx, cancel := context.WithCancel(context.Background())
-		//defer cancel()
-		//go dbInMemory.RunSaver(ctx)
-		//err = dbInMemory.Restore(ctx)
-		//if err != nil {
-		//	logger.Fatal("failed to restore database", zap.Error(err))
-		//}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go dbInMemory.RunSaver(ctx)
+		err = dbInMemory.Restore(ctx)
+		if err != nil {
+			logger.Fatal("failed to restore database", zap.Error(err))
+		}
 		db = dbInMemory
-
+	} else {
+		logger.Fatal("something strange happened: " +
+			"restore and connection string parameters are incorrect. Exiting...")
+		return
 	}
 
 	srvApp := service.NewMetricsService(db)
