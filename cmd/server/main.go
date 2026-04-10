@@ -28,7 +28,10 @@ func main() {
 	logger.Info("starting server ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	var db domain.MetricRepository
-	db, err = getDB(currentConfig, logger)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	db, err = getDB(ctx, currentConfig, logger)
 	if err != nil {
 		logger.Fatal("failed to initialize db", zap.Error(err))
 	}
@@ -57,13 +60,14 @@ func main() {
 
 }
 
-func getDB(currentConfig *config.Options, logger *zap.Logger) (domain.MetricRepository, error) {
+func getDB(ctx context.Context, currentConfig *config.Options, logger *zap.Logger) (domain.MetricRepository, error) {
 	var db domain.MetricRepository
 	var err error
 
 	if currentConfig.DatabaseDSN.BeenSet {
 		db, err = repository.NewPostgresStorage(currentConfig, currentConfig.MigrationsFolder.Value)
 		if err != nil {
+
 			return nil, fmt.Errorf("failed to initialize metrics repository: %w", err)
 		}
 	} else if !currentConfig.Restore.BeenSet || !currentConfig.Restore.Value {
@@ -72,8 +76,6 @@ func getDB(currentConfig *config.Options, logger *zap.Logger) (domain.MetricRepo
 	} else if currentConfig.Restore.Value {
 		logger.Info("trying to load data from file into the in-memory DB")
 		dbInMemory := repository.NewMemStorage(currentConfig)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		go dbInMemory.RunSaver(ctx)
 		err = dbInMemory.Restore(ctx)
 		if err != nil {
