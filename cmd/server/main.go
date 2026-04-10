@@ -64,16 +64,24 @@ func getDB(ctx context.Context, currentConfig *config.Options, logger *zap.Logge
 	var db domain.MetricRepository
 	var err error
 
+	// Case 1
 	if currentConfig.DatabaseDSN.BeenSet {
 		db, err = repository.NewPostgresStorage(currentConfig, currentConfig.MigrationsFolder.Value)
 		if err != nil {
-
 			return nil, fmt.Errorf("failed to initialize metrics repository: %w", err)
 		}
-	} else if !currentConfig.Restore.BeenSet || !currentConfig.Restore.Value {
+		return db, nil
+	}
+
+	// Case 2
+	if !currentConfig.Restore.BeenSet || !currentConfig.Restore.Value {
 		logger.Info("making a fresh in-memory DB because the restore flag is false")
 		db = repository.NewMemStorage(currentConfig)
-	} else if currentConfig.Restore.Value {
+		return db, nil
+	}
+
+	// Case 3
+	if currentConfig.Restore.Value {
 		logger.Info("trying to load data from file into the in-memory DB")
 		dbInMemory := repository.NewMemStorage(currentConfig)
 		go dbInMemory.RunSaver(ctx)
@@ -82,9 +90,9 @@ func getDB(ctx context.Context, currentConfig *config.Options, logger *zap.Logge
 			return nil, fmt.Errorf("failed to restore database")
 		}
 		db = dbInMemory
-	} else {
-		return nil, fmt.Errorf("something strange happened: " +
-			"restore and connection string parameters are incorrect")
+		return db, nil
 	}
-	return db, err
+
+	return nil, fmt.Errorf("something strange happened: " +
+		"restore and connection string parameters are incorrect")
 }
