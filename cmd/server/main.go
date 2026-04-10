@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"os"
@@ -29,16 +28,8 @@ func main() {
 	var db domain.MetricRepository
 	db, err = repository.NewPostgresStorage(currentConfig, currentConfig.MigrationsFolder.Value)
 	if err != nil {
-		logger.Error("failed to initialize database, falling back to the in-memory db", zap.Error(err))
-		dbInMemory := repository.NewMemStorage(currentConfig)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		go dbInMemory.RunSaver(ctx)
-		err = dbInMemory.Restore(ctx)
-		if err != nil {
-			logger.Fatal("failed to restore database", zap.Error(err))
-		}
-		db = dbInMemory
+		logger.Fatal("failed to initialize metrics repository", zap.Error(err))
+		return
 	}
 
 	srvApp := service.NewMetricsService(db)
