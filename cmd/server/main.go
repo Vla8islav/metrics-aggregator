@@ -26,7 +26,7 @@ func main() {
 	logger.Info("starting server ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	var db domain.MetricRepository
-	if currentConfig.Restore.BeenSet && currentConfig.Restore.Value {
+	if currentConfig.Restore.Value && currentConfig.DatabaseDSN.BeenSet {
 		db, err = repository.NewPostgresStorage(currentConfig, currentConfig.MigrationsFolder.Value)
 		if err != nil {
 			logger.Fatal("failed to initialize metrics repository", zap.Error(err))

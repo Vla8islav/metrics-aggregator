@@ -133,68 +133,77 @@ func ReadFlags(args []string) *Options {
 	logSetFlags(*cmdOptions)
 
 	envOptions := getEnvOptions()
-	logSetEnv(envOptions)
+	logSetEnv(*envOptions)
 
 	finalOptions := Options{
-		ServerAddress:    OptionalString{Value: "localhost:8080", BeenSet: false},
-		PollInterval:     CustomSecondsDuration{Duration: time.Second * 2, BeenSet: false},
-		ReportInterval:   CustomSecondsDuration{Duration: time.Second * 10, BeenSet: false},
-		StoreInterval:    CustomSecondsDuration{Duration: time.Second * 300, BeenSet: false},
-		FileStoragePath:  OptionalString{Value: "storage.dat", BeenSet: false},
-		DatabaseDSN:      OptionalString{Value: "postgres://default_user:default_password@localhost:5432/metrics_db?sslmode=disable", BeenSet: false},
+		ServerAddress:   OptionalString{Value: "localhost:8080", BeenSet: false},
+		PollInterval:    CustomSecondsDuration{Duration: time.Second * 2, BeenSet: false},
+		ReportInterval:  CustomSecondsDuration{Duration: time.Second * 10, BeenSet: false},
+		StoreInterval:   CustomSecondsDuration{Duration: time.Second * 300, BeenSet: false},
+		FileStoragePath: OptionalString{Value: "storage.dat", BeenSet: false},
+		DatabaseDSN: OptionalString{Value: "postgres://default_user:default_password@localhost:5432/metrics_db?sslmode=disable",
+			BeenSet: false},
 		MigrationsFolder: OptionalString{Value: "./migrations", BeenSet: false},
 		Restore:          OptionalBool{Value: true, BeenSet: false},
 	}
 
 	// env options are the priority
 	mergeOptions(&finalOptions, *cmdOptions)
-	mergeOptions(&finalOptions, envOptions)
+	mergeOptions(&finalOptions, *envOptions)
 
-	setOptionsTrue(&finalOptions)
+	//setOptionsTrue(&finalOptions)
 	return &finalOptions
 }
 
 func mergeOptions(mergeInto *Options, newValues Options) {
 	if newValues.ServerAddress.BeenSet {
 		mergeInto.ServerAddress = newValues.ServerAddress
+		mergeInto.ServerAddress.BeenSet = true
 	}
 
 	if newValues.PollInterval.BeenSet {
 		mergeInto.PollInterval = newValues.PollInterval
+		mergeInto.PollInterval.BeenSet = true
 	}
 
 	if newValues.ReportInterval.BeenSet {
 		mergeInto.ReportInterval = newValues.ReportInterval
+		mergeInto.ReportInterval.BeenSet = true
 	}
 
 	if newValues.StoreInterval.BeenSet {
 		mergeInto.StoreInterval = newValues.StoreInterval
+		mergeInto.StoreInterval.BeenSet = true
 	}
 
 	if newValues.FileStoragePath.BeenSet {
 		mergeInto.FileStoragePath = newValues.FileStoragePath
+		mergeInto.FileStoragePath.BeenSet = true
 	}
 
 	if newValues.Restore.BeenSet {
 		mergeInto.Restore = newValues.Restore
+		mergeInto.Restore.BeenSet = true
 	}
 
 	if newValues.DatabaseDSN.BeenSet {
 		mergeInto.DatabaseDSN = newValues.DatabaseDSN
+		mergeInto.DatabaseDSN.BeenSet = true
 	}
 
 	if newValues.MigrationsFolder.BeenSet {
 		mergeInto.MigrationsFolder = newValues.MigrationsFolder
+		mergeInto.MigrationsFolder.BeenSet = true
 	}
 }
 
-func getEnvOptions() Options {
+func getEnvOptions() *Options {
 	var opt Options
 	err := env.Parse(&opt)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	return opt
+	return &opt
 }
 
 func getServerOptions(args []string) (*Options, error) {
