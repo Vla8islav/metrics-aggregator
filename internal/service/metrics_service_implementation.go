@@ -15,6 +15,10 @@ func NewMetricsService(repo domain.MetricRepository) domain.MetricService {
 	return metricsService{repository: repo}
 }
 
+func (m metricsService) Ping(ctx context.Context) error {
+	return m.repository.Ping(ctx)
+}
+
 func (m metricsService) IncrementCounter(ctx context.Context, name string, number int64) error {
 	return m.repository.IncrementCounter(ctx, name, number)
 }
@@ -33,4 +37,7 @@ func (m metricsService) GetCounter(ctx context.Context, name string) (int64, err
 
 func (m metricsService) GetAll(ctx context.Context) (models.MetricsExport, error) {
 	return m.repository.GetAll(ctx)
+}
+func (m metricsService) UpdateMetrics(ctx context.Context, input []models.Metrics) error {
+	return m.repository.UpdateMetrics(ctx, input)
 }

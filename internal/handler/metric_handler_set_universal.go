@@ -5,50 +5,51 @@ import (
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
 func (h *Handler) SetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
-		log.Println("Only POST method is allowed")
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		h.writeMethodNotAllowed(w, "only POST method is allowed")
 		return
 	}
 
 	if r.Header.Get("Content-Type") != "application/json" {
-		writeBadRequest(w, "only application/json content type is supported")
+		h.writeBadRequest(w, "only application/json content type is supported")
 		return
 	}
 
 	requestBody, err := io.ReadAll(r.Body)
 	if err != nil {
-		writeBadRequest(w, "failed to read request body: "+err.Error())
+		h.writeBadRequest(w, "failed to read request body: "+err.Error())
 		return
 	}
 
-	var requestBodySerialised Metrics
+	var requestBodySerialised models.Metrics
 	err = json.Unmarshal(requestBody, &requestBodySerialised)
 	if err != nil {
-		writeBadRequest(w, err.Error())
+		h.writeBadRequest(w, err.Error())
 		return
 	}
 
-	metricType := MetricType(requestBodySerialised.MType)
-	if _, found := validMetricTypes[metricType]; !found {
-		writeBadRequest(w, "invalid metric type: "+string(metricType))
+	metricType := models.MetricType(requestBodySerialised.MType)
+	if _, found := models.ValidMetricTypes[metricType]; !found {
+		h.writeBadRequest(w, "invalid metric type: "+string(metricType))
 		return
 	}
 
 	if requestBodySerialised.ID == "" {
-		writeBadRequest(w, "metric ID cannot be empty")
+		h.writeBadRequest(w, "metric ID cannot be empty")
 		return
 	}
 
 	switch metricType {
-	case Gauge:
+	case models.Gauge:
 
 		if requestBodySerialised.Value == nil {
-			writeBadRequest(w, "gauge value cannot be nil")
+			h.writeBadRequest(w, "gauge value cannot be nil")
 			return
 		}
 
@@ -58,9 +59,9 @@ func (h *Handler) SetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-	case Counter:
+	case models.Counter:
 		if requestBodySerialised.Delta == nil {
-			writeBadRequest(w, "gauge value cannot be nil")
+			h.writeBadRequest(w, "gauge value cannot be nil")
 			return
 		}
 		err = h.service.IncrementCounter(r.Context(), requestBodySerialised.ID, *requestBodySerialised.Delta)

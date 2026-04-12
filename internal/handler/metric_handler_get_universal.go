@@ -7,47 +7,47 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 )
 
 func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
-		log.Println("Only POST method is allowed")
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		h.writeMethodNotAllowed(w, "only POST method is allowed")
 		return
 	}
 
 	if r.Header.Get("Content-Type") != "application/json" {
-		writeBadRequest(w, "only application/json content type is supported")
+		h.writeBadRequest(w, "only application/json content type is supported")
 		return
 	}
 
 	requestBody, err := io.ReadAll(r.Body)
 	if err != nil {
-		writeBadRequest(w, "failed to read request body: "+err.Error())
+		h.writeBadRequest(w, "failed to read request body: "+err.Error())
 		return
 	}
 
-	var requestBodySerialised Metrics
+	var requestBodySerialised models.Metrics
 	err = json.Unmarshal(requestBody, &requestBodySerialised)
 	if err != nil {
-		writeBadRequest(w, err.Error())
+		h.writeBadRequest(w, err.Error())
 		return
 	}
 
-	metricType := MetricType(requestBodySerialised.MType)
-	if _, found := validMetricTypes[metricType]; !found {
-		writeBadRequest(w, "invalid metric type: "+string(metricType))
+	metricType := models.MetricType(requestBodySerialised.MType)
+	if _, found := models.ValidMetricTypes[metricType]; !found {
+		h.writeBadRequest(w, "invalid metric type: "+string(metricType))
 		return
 	}
 	if requestBodySerialised.ID == "" {
-		writeBadRequest(w, "metric ID cannot be empty")
+		h.writeBadRequest(w, "metric ID cannot be empty")
 		return
 	}
 
 	switch metricType {
-	case Gauge:
+	case models.Gauge:
 		val, err := h.service.GetGauge(r.Context(), requestBodySerialised.ID)
 		if errors.Is(err, repository.ErrNotFound) {
 			log.Println("gauge with this name wasn't found: ", requestBodySerialised.ID, err)
@@ -59,9 +59,9 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		responseBodySerialized := Metrics{
+		responseBodySerialized := models.Metrics{
 			ID:    requestBodySerialised.ID,
-			MType: string(Gauge),
+			MType: models.Gauge,
 			Value: &val,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -75,7 +75,7 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 
-	case Counter:
+	case models.Counter:
 		val, err := h.service.GetCounter(r.Context(), requestBodySerialised.ID)
 		if errors.Is(err, repository.ErrNotFound) {
 			log.Println("counter with this name wasn't found: ", requestBodySerialised.ID, err)
@@ -87,9 +87,9 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		responseBodySerialized := Metrics{
+		responseBodySerialized := models.Metrics{
 			ID:    requestBodySerialised.ID,
-			MType: string(Counter),
+			MType: models.Counter,
 			Delta: &val,
 		}
 		w.Header().Set("Content-Type", "application/json")

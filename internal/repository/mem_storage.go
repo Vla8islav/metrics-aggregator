@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -27,6 +26,10 @@ func NewMemStorage(config *config.Options) *MemoryStorage {
 	return &MemoryStorage{namedGauge: make(map[string]float64), namedCounter: make(map[string]int64), config: config}
 }
 
+func (s *MemoryStorage) Ping(_ context.Context) error {
+	return nil
+}
+
 func (s *MemoryStorage) Restore(ctx context.Context) error {
 	if s.config.Restore.Value {
 		err := s.LoadState(ctx)
@@ -47,7 +50,7 @@ func (s *MemoryStorage) RunSaver(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			case <-fileSaveTicker.C:
-				err := s.SaveState(ctx)
+				err := s.saveState(ctx)
 				if err != nil {
 					log.Printf("failed to save state: %v", err)
 				}
@@ -107,7 +110,7 @@ func (s *MemoryStorage) IncrementCounter(ctx context.Context, name string, numbe
 
 func (s *MemoryStorage) saveIfImmediateSaveIsSet(ctx context.Context) error {
 	if s.config.Restore.Value && s.config.StoreInterval.Duration == 0 {
-		err := s.SaveState(ctx)
+		err := s.saveState(ctx)
 		if err != nil {
 			return err
 		}
@@ -130,8 +133,6 @@ func (s *MemoryStorage) SetGauge(ctx context.Context, name string, gauge float64
 	}
 	return nil
 }
-
-var ErrNotFound = errors.New("not found")
 
 func (s *MemoryStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	select {
@@ -163,7 +164,7 @@ func (s *MemoryStorage) GetCounter(ctx context.Context, name string) (int64, err
 	return value, nil
 }
 
-func (s *MemoryStorage) SaveState(ctx context.Context) error {
+func (s *MemoryStorage) saveState(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -237,6 +238,29 @@ func (s *MemoryStorage) LoadState(ctx context.Context) error {
 
 	s.namedCounter = metrics.Counters
 	s.namedGauge = metrics.Gauges
+
+	return nil
+}
+
+func (s *MemoryStorage) UpdateMetrics(ctx context.Context, input []models.Metrics) error {
+	if len(input) == 0 {
+		return nil
+	}
+
+	for _, m := range input {
+		if m.MType == models.Gauge && m.Value != nil {
+			err := s.SetGauge(ctx, m.ID, *m.Value)
+			if err != nil {
+				return err
+			}
+		}
+		if m.MType == models.Counter && m.Delta != nil {
+			err := s.IncrementCounter(ctx, m.ID, *m.Delta)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }

@@ -33,6 +33,12 @@ func (d *CustomSecondsDuration) Set(value string) error {
 		return nil
 	}
 
+	if value == "false" {
+		d.Duration = time.Duration(0)
+		d.BeenSet = true
+		return nil
+	}
+
 	// if parsing fails, trying to parse it as an integer
 	seconds, err := strconv.Atoi(value)
 	if err != nil {

@@ -12,6 +12,10 @@ func NewRouter(handler *Handler) *mux.Router {
 	r.HandleFunc("/update", handler.SetMetricsUniversal)
 	r.HandleFunc("/value/", handler.GetMetricsUniversal)
 	r.HandleFunc("/value", handler.GetMetricsUniversal)
+	r.HandleFunc("/ping/", handler.DBPing)
+	r.HandleFunc("/ping", handler.DBPing)
+	r.HandleFunc("/updates/", handler.UpdateBatchMetrics)
+	r.HandleFunc("/updates", handler.UpdateBatchMetrics)
 	r.HandleFunc("/", handler.GetAllMetrics)
 	return r
 }

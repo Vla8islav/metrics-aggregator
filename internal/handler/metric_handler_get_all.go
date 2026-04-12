@@ -1,14 +1,45 @@
 package handler
 
 import (
-	"fmt"
+	"html/template"
 	"log"
 	"net/http"
+
+	"go.uber.org/zap"
 )
+
+var metricsPageTemplate = template.Must(template.New("metrics").Parse(`
+<html>
+<body>
+    <h1>Metrics</h1>
+
+    <h2>Gauges</h2>
+    {{if .Gauges}}
+    <ul>
+        {{range $name, $value := .Gauges}}
+        <li><strong>{{$name}}</strong>: {{$value}}</li>
+        {{end}}
+    </ul>
+    {{else}}
+    <p>No gauges available.</p>
+    {{end}}
+
+    <h2>Counters</h2>
+    {{if .Counters}}
+    <ul>
+        {{range $name, $value := .Counters}}
+        <li><strong>{{$name}}</strong>: {{$value}}</li>
+        {{end}}
+    </ul>
+    {{else}}
+    <p>No counters available.</p>
+    {{end}}
+</body>
+</html>`))
 
 func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		h.writeMethodNotAllowed(w, "only GET method is allowed")
 		return
 	}
 
@@ -19,28 +50,10 @@ func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html")
-	// Laziest HTML page ever
-	_, err = w.Write([]byte("<HTML>"))
-	if err != nil {
-		log.Printf("error opening the HTML tag: %s", err.Error())
-	}
-	for k, v := range metricsExport.Gauges {
-		_, err = w.Write([]byte(fmt.Sprintf("%s %f </br>", k, v)))
-		if err != nil {
-			return
-		}
-	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	for k, v := range metricsExport.Counters {
-		_, err = w.Write([]byte(fmt.Sprintf("%s %d </br>", k, v)))
-		if err != nil {
-			return
-		}
-	}
-	_, err = w.Write([]byte("</HTML>"))
-	if err != nil {
-		log.Printf("error closing the HTML tag: %s", err.Error())
+	if err := metricsPageTemplate.Execute(w, metricsExport); err != nil {
+		h.logger.Error("error rendering metrics template", zap.Error(err))
 	}
 
 }

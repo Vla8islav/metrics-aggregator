@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 	"github.com/gorilla/mux"
 )
@@ -13,17 +14,17 @@ import (
 func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		h.writeMethodNotAllowed(w, "only GET method is allowed")
 		return
 	}
 
 	requestComponents := mux.Vars(r)
 
 	metricTypeStr := requestComponents["metricType"]
-	metricType := MetricType(metricTypeStr)
+	metricType := models.MetricType(metricTypeStr)
 	metricName := requestComponents["metricName"]
 
-	if _, found := validMetricTypes[metricType]; !found {
+	if _, found := models.ValidMetricTypes[metricType]; !found {
 		log.Printf("Invalid metric type: %s", metricType)
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -38,7 +39,7 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch metricType {
-	case Gauge:
+	case models.Gauge:
 
 		gauge, err := h.service.GetGauge(r.Context(), metricName)
 		if errors.Is(err, repository.ErrNotFound) {
@@ -56,7 +57,7 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-	case Counter:
+	case models.Counter:
 		counter, err := h.service.GetCounter(r.Context(), metricName)
 		if errors.Is(err, repository.ErrNotFound) {
 			w.WriteHeader(http.StatusNotFound)

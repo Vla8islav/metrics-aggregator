@@ -8,16 +8,14 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strconv"
 	"time"
 
-	"github.com/Vla8islav/metrics-aggregator/internal/handler"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
 type Agent struct {
-	client         *http.Client
+	client         *helpers.HTTPRetryClient
 	serverAddr     string
 	pollInterval   time.Duration
 	reportInterval time.Duration
@@ -27,10 +25,10 @@ type Agent struct {
 
 func NewAgent(serverAddr string, pollInterval, reportInterval time.Duration) *Agent {
 	s := models.NewStats()
+	retryClient := helpers.NewHTTPRetryClient(helpers.DefaultShouldRetryStatus,
+		5*time.Second, 2)
 	return &Agent{
-		client: &http.Client{
-			Timeout: 5 * time.Second,
-		},
+		client:         retryClient,
 		serverAddr:     serverAddr,
 		pollInterval:   pollInterval,
 		reportInterval: reportInterval,
@@ -68,30 +66,27 @@ func (a *Agent) Start(ctx context.Context) {
 
 }
 
-func formatFloat(v float64) string {
-	// grooming floats a bit
-	return strconv.FormatFloat(v, 'g', -1, 64)
-}
-
 func (a *Agent) report(ctx context.Context) error {
+	payload := make([]models.Metrics, 0)
 	// send gauges
 	for name, value := range a.gauges.GetGauges() {
-		if err := a.send(ctx, handler.Gauge, name, &value, nil); err != nil {
-			return err
-		}
+		payload = append(payload, models.Metrics{MType: models.Gauge, ID: name, Value: &value})
 	}
 
 	// send counters
 	for name, value := range a.gauges.GetCounters() {
-		if err := a.send(ctx, handler.Counter, name, nil, &value); err != nil {
-			return err
-		}
+		payload = append(payload, models.Metrics{MType: models.Counter, ID: name, Delta: &value})
+	}
+
+	err := a.sendBatch(ctx, payload)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricName string, gauge *float64, counter *int64) error {
+func (a *Agent) send(ctx context.Context, metricType models.MetricType, metricName string, gauge *float64, counter *int64) error {
 	if gauge == nil && counter == nil {
 		return fmt.Errorf("both gauge and counter are nil")
 	}
@@ -108,7 +103,7 @@ func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricN
 
 	payload := models.Metrics{
 		ID:    metricName,
-		MType: string(metricType),
+		MType: metricType,
 		Delta: counter,
 		Value: gauge,
 	}
@@ -141,6 +136,53 @@ func (a *Agent) send(ctx context.Context, metricType handler.MetricType, metricN
 		}
 
 		return fmt.Errorf("server returned %s for %s %s=%v", resp.Status, metricType, metricName, *counter)
+	}
+	return nil
+}
+
+func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
+	if metrics == nil {
+		return nil
+	}
+	// POST http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
+	base, err := url.Parse(a.serverAddr)
+	if err != nil {
+		return fmt.Errorf("couldn't parse server addr: %w", err)
+	}
+
+	base.Path = path.Join(
+		base.Path,
+		"updates",
+	)
+
+	payloadBytes, err := json.Marshal(metrics)
+	if err != nil {
+		return fmt.Errorf("couldn't marshal metrics payload: %w", err)
+	}
+	payloadBytesCompressed, err := helpers.GzipCompress(payloadBytes)
+	if err != nil {
+		return fmt.Errorf("couldn't compress metrics payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		base.String(), bytes.NewReader(payloadBytesCompressed))
+
+	if err != nil {
+		return fmt.Errorf("couldn't build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Accept-Encoding", "gzip")
+
+	resp, err := a.client.Do(req)
+
+	if err != nil {
+		return fmt.Errorf("couldn't make a request: %w", err)
+	}
+
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("server returned %s for %s payload", resp.Status, string(payloadBytes))
 	}
 	return nil
 }

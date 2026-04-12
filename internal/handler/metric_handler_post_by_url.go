@@ -5,46 +5,46 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/gorilla/mux"
 )
 
 func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
-		log.Println("Only POST method is allowed")
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		h.writeMethodNotAllowed(w, "only POST method is allowed")
 		return
 	}
 
 	requestComponents := mux.Vars(r)
 
 	metricTypeStr := requestComponents["metricType"]
-	metricType := MetricType(metricTypeStr)
+	metricType := models.MetricType(metricTypeStr)
 	metricName := requestComponents["metricName"]
 	metricValue := requestComponents["metricValue"]
 
-	if _, found := validMetricTypes[metricType]; !found {
-		writeBadRequest(w, "invalid metric type: "+metricTypeStr)
+	if _, found := models.ValidMetricTypes[metricType]; !found {
+		h.writeBadRequest(w, "invalid metric type: "+metricTypeStr)
 		return
 	}
 
 	log.Printf("Post metrics for %s %s %s", metricType, metricName, metricValue)
 	// let's do a request sanity check
 	if metricName == "" {
-		writeBadRequest(w, "metric name is empty")
+		h.writeBadRequest(w, "metric name is empty")
 		return
 	}
 	if metricValue == "" {
-		writeBadRequest(w, "metric value is empty")
+		h.writeBadRequest(w, "metric value is empty")
 		return
 	}
 
 	switch metricType {
-	case Gauge:
+	case models.Gauge:
 
 		metricValueGauge, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
-			writeBadRequest(w, "invalid gauge value: "+metricValue+err.Error())
+			h.writeBadRequest(w, "invalid gauge value: "+metricValue+err.Error())
 			return
 		}
 		err = h.service.SetGauge(r.Context(), metricName, metricValueGauge)
@@ -53,10 +53,10 @@ func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-	case Counter:
+	case models.Counter:
 		metricValueCounter, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
-			writeBadRequest(w, "invalid counter value: "+metricValue+err.Error())
+			h.writeBadRequest(w, "invalid counter value: "+metricValue+err.Error())
 			return
 		}
 		err = h.service.IncrementCounter(r.Context(), metricName, metricValueCounter)
