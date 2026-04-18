@@ -24,8 +24,8 @@ func WithChecksumValidation(key string, logger *zap.Logger) Middleware {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
 			r.Body = io.NopCloser(bytes.NewReader(payloadData))
+
 			payloadHash := helpers.Sha256WithKeyHex(payloadData, []byte(key))
 			requestShaHeaderValue := r.Header.Get(helpers.ShaSimpleSignatureHeader)
 
