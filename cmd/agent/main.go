@@ -11,15 +11,15 @@ import (
 
 func main() {
 	currentConfig := config.ReadFlags(os.Args[1:])
-	serverAddr := "http://" + currentConfig.ServerAddress.Value
-	pollInterval := currentConfig.PollInterval.Duration
-	reportInterval := currentConfig.ReportInterval.Duration
 
-	ag := agent.NewAgent(serverAddr, pollInterval, reportInterval)
+	ag := agent.NewAgent(currentConfig)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	serverAddr := "http://" + currentConfig.ServerAddress.Value
+	pollInterval := currentConfig.PollInterval.Duration
+	reportInterval := currentConfig.ReportInterval.Duration
 	log.Printf("agent started: metric_poll=%s report=%s server=%s", pollInterval, reportInterval, serverAddr)
 	ag.Start(ctx)
 

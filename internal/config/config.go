@@ -22,6 +22,8 @@ type Options struct {
 
 	DatabaseDSN      OptionalString `env:"DATABASE_DSN"`
 	MigrationsFolder OptionalString `env:"MIGRATIONS_FOLDER"`
+
+	SecretKey OptionalString `env:"SECRET_KEY"`
 }
 
 func logSetFlags(options Options) {
@@ -57,6 +59,10 @@ func logSetFlags(options Options) {
 
 	if options.MigrationsFolder.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("-m=%s", options.MigrationsFolder.Value))
+	}
+
+	if options.SecretKey.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-k=%s", options.SecretKey.Value))
 	}
 
 	if len(setFlags) == 0 {
@@ -104,6 +110,10 @@ func logSetEnv(options Options) {
 		setEnv = append(setEnv, fmt.Sprintf("MIGRATIONS_FOLDER=%s", options.MigrationsFolder.Value))
 	}
 
+	if options.SecretKey.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("SECRET_KEY=%s", options.SecretKey.Value))
+	}
+
 	if len(setEnv) == 0 {
 		log.Println("no environment variables were set")
 		return
@@ -134,6 +144,7 @@ func ReadFlags(args []string) *Options {
 			BeenSet: false},
 		MigrationsFolder: OptionalString{Value: "./migrations", BeenSet: false},
 		Restore:          OptionalBool{Value: true, BeenSet: false},
+		SecretKey:        OptionalString{Value: "", BeenSet: false},
 	}
 
 	// env options are the priority
@@ -184,6 +195,11 @@ func mergeOptions(mergeInto *Options, newValues Options) {
 		mergeInto.MigrationsFolder = newValues.MigrationsFolder
 		mergeInto.MigrationsFolder.BeenSet = true
 	}
+
+	if newValues.SecretKey.BeenSet {
+		mergeInto.SecretKey = newValues.SecretKey
+		mergeInto.SecretKey.BeenSet = true
+	}
 }
 
 func getEnvOptions() *Options {
@@ -214,6 +230,7 @@ func getServerOptions(args []string) (*Options, error) {
 		"следует ли загружать ранее сохранённые значения из указанного файла при старте сервера")
 	fs.Var(&opt.DatabaseDSN, "d", "connection string/dsn для postgres базы данных")
 	fs.Var(&opt.MigrationsFolder, "m", "относительный путь до миграций, например ./migrations")
+	fs.Var(&opt.SecretKey, "k", "симметричный ключ шифрования для подписи сообщений")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err

@@ -10,6 +10,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
 )
@@ -21,9 +22,14 @@ type Agent struct {
 	reportInterval time.Duration
 
 	gauges *models.Stats
+	config *config.Options
 }
 
-func NewAgent(serverAddr string, pollInterval, reportInterval time.Duration) *Agent {
+func NewAgent(currentConfig *config.Options) *Agent {
+	serverAddr := "http://" + currentConfig.ServerAddress.Value
+	pollInterval := currentConfig.PollInterval.Duration
+	reportInterval := currentConfig.ReportInterval.Duration
+
 	s := models.NewStats()
 	retryClient := helpers.NewHTTPRetryClient(helpers.DefaultShouldRetryStatus,
 		5*time.Second, 2)
@@ -33,6 +39,7 @@ func NewAgent(serverAddr string, pollInterval, reportInterval time.Duration) *Ag
 		pollInterval:   pollInterval,
 		reportInterval: reportInterval,
 		gauges:         s,
+		config:         currentConfig,
 	}
 }
 
@@ -140,6 +147,10 @@ func (a *Agent) send(ctx context.Context, metricType models.MetricType, metricNa
 	return nil
 }
 
+func (a *Agent) getSignatureHeaderValue(payloadBytes []byte) string {
+	return helpers.Sha256WithKeyHex(payloadBytes, []byte(a.config.SecretKey.Value))
+}
+
 func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	if metrics == nil {
 		return nil
@@ -159,6 +170,7 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	if err != nil {
 		return fmt.Errorf("couldn't marshal metrics payload: %w", err)
 	}
+
 	payloadBytesCompressed, err := helpers.GzipCompress(payloadBytes)
 	if err != nil {
 		return fmt.Errorf("couldn't compress metrics payload: %w", err)
@@ -173,6 +185,8 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
+	signatureHeaderValue := a.getSignatureHeaderValue(payloadBytes)
+	req.Header.Set(helpers.ShaSimpleSignatureHeader, signatureHeaderValue)
 
 	resp, err := a.client.Do(req)
 
