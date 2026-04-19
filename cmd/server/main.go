@@ -40,9 +40,9 @@ func main() {
 
 	handlerWithMW := middlewares.ChainMiddlewares(
 		r,
-		middlewares.WithLogging(logger),
-		middlewares.WithGzipCompression(),
-		middlewares.WithChecksumValidation(currentConfig.SecretKey.Value, logger),
+		//middlewares.WithLogging(logger),
+		//middlewares.WithGzipCompression(),
+		middlewares.WithChecksum(currentConfig.SecretKey.Value, logger),
 	)
 
 	srvImpl := &http.Server{Addr: currentConfig.ServerAddress.Value,

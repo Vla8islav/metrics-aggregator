@@ -8,6 +8,7 @@ type (
 	responseData struct {
 		status int
 		size   int
+		body   []byte
 	}
 
 	// добавляем реализацию http.ResponseWriter
@@ -26,11 +27,6 @@ func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 }
 
 func (r *loggingResponseWriter) WriteHeader(statusCode int) {
-	if r.wroteHeader {
-		return
-	}
-	// записываем код статуса, используя оригинальный http.ResponseWriter
-	r.wroteHeader = true
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.responseData.status = statusCode // захватываем код статуса
 }
