@@ -22,10 +22,10 @@ type Agent struct {
 	reportInterval time.Duration
 
 	gauges *models.Stats
-	config *config.Options
+	config *config.OptionsServer
 }
 
-func NewAgent(currentConfig *config.Options) *Agent {
+func NewAgent(currentConfig *config.OptionsServer) *Agent {
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
 	reportInterval := currentConfig.ReportInterval.Duration

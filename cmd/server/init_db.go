@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func initDB(ctx context.Context, currentConfig *config.Options, logger *zap.Logger) (domain.MetricRepository, error) {
+func initDB(ctx context.Context, currentConfig *config.OptionsServer, logger *zap.Logger) (domain.MetricRepository, error) {
 	var db domain.MetricRepository
 	var err error
 

@@ -17,12 +17,12 @@ import (
 type MemoryStorage struct {
 	namedCounter map[string]int64
 	namedGauge   map[string]float64
-	config       *config.Options
+	config       *config.OptionsServer
 
 	mu sync.RWMutex
 }
 
-func NewMemStorage(config *config.Options) *MemoryStorage {
+func NewMemStorage(config *config.OptionsServer) *MemoryStorage {
 	return &MemoryStorage{namedGauge: make(map[string]float64), namedCounter: make(map[string]int64), config: config}
 }
 

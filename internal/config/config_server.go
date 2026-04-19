@@ -10,8 +10,8 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
-// Options TODO: implement a clean option separation
-type Options struct {
+// OptionsServer TODO: implement a clean option separation
+type OptionsServer struct {
 	ServerAddress  OptionalString        `env:"ADDRESS"`
 	PollInterval   CustomSecondsDuration `env:"POLL_INTERVAL"`
 	ReportInterval CustomSecondsDuration `env:"REPORT_INTERVAL"`
@@ -26,7 +26,10 @@ type Options struct {
 	SecretKey OptionalString `env:"SECRET_KEY"`
 }
 
-func logSetFlags(options Options) {
+func logSetFlagsServer(options *OptionsServer) {
+	if options == nil {
+		return
+	}
 	var setFlags []string
 
 	if options.ServerAddress.BeenSet {
@@ -75,7 +78,10 @@ func logSetFlags(options Options) {
 	}
 }
 
-func logSetEnv(options Options) {
+func logSetEnvServer(options *OptionsServer) {
+	if options == nil {
+		return
+	}
 	var setEnv []string
 
 	if options.ServerAddress.BeenSet {
@@ -124,17 +130,17 @@ func logSetEnv(options Options) {
 	}
 }
 
-func ReadFlags(args []string) *Options {
-	cmdOptions, err := getServerOptions(args)
+func ReadFlags(args []string) *OptionsServer {
+	cmdOptions, err := getOptionsServer(args)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	logSetFlags(*cmdOptions)
+	logSetFlagsServer(cmdOptions)
 
 	envOptions := getEnvOptions()
-	logSetEnv(*envOptions)
+	logSetEnvServer(envOptions)
 
-	finalOptions := Options{
+	finalOptions := OptionsServer{
 		ServerAddress:   OptionalString{Value: "localhost:8080", BeenSet: false},
 		PollInterval:    CustomSecondsDuration{Duration: time.Second * 2, BeenSet: false},
 		ReportInterval:  CustomSecondsDuration{Duration: time.Second * 10, BeenSet: false},
@@ -148,14 +154,14 @@ func ReadFlags(args []string) *Options {
 	}
 
 	// env options are the priority
-	mergeOptions(&finalOptions, *cmdOptions)
-	mergeOptions(&finalOptions, *envOptions)
+	mergeOptionsServer(&finalOptions, *cmdOptions)
+	mergeOptionsServer(&finalOptions, *envOptions)
 
 	//setOptionsTrue(&finalOptions)
 	return &finalOptions
 }
 
-func mergeOptions(mergeInto *Options, newValues Options) {
+func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 	if newValues.ServerAddress.BeenSet {
 		mergeInto.ServerAddress = newValues.ServerAddress
 		mergeInto.ServerAddress.BeenSet = true
@@ -202,8 +208,8 @@ func mergeOptions(mergeInto *Options, newValues Options) {
 	}
 }
 
-func getEnvOptions() *Options {
-	var opt Options
+func getEnvOptions() *OptionsServer {
+	var opt OptionsServer
 	err := env.Parse(&opt)
 	if err != nil {
 		log.Fatalln(err)
@@ -211,9 +217,9 @@ func getEnvOptions() *Options {
 	return &opt
 }
 
-func getServerOptions(args []string) (*Options, error) {
+func getOptionsServer(args []string) (*OptionsServer, error) {
 
-	opt := &Options{}
+	opt := &OptionsServer{}
 
 	fs := flag.NewFlagSet("metrics-aggregator", flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // optional: silence flag errors in tests

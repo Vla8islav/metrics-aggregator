@@ -30,7 +30,8 @@ func WithChecksumValidation(key string, logger *zap.Logger) Middleware {
 			requestShaHeaderValue := r.Header.Get(helpers.ShaSimpleSignatureHeader)
 
 			if payloadHash != requestShaHeaderValue {
-				logger.Warn("invalid signature provided")
+				logger.Warn("invalid signature provided, calculated hash: " + payloadHash +
+					"doesn't match provided hash: " + requestShaHeaderValue)
 				http.Error(w, "invalid signature", http.StatusBadRequest)
 				return
 			}
