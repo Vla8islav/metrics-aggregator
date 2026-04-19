@@ -12,9 +12,7 @@ import (
 
 // OptionsServer TODO: implement a clean option separation
 type OptionsServer struct {
-	ServerAddress  OptionalString        `env:"ADDRESS"`
-	PollInterval   CustomSecondsDuration `env:"POLL_INTERVAL"`
-	ReportInterval CustomSecondsDuration `env:"REPORT_INTERVAL"`
+	ServerAddress OptionalString `env:"ADDRESS"`
 
 	StoreInterval   CustomSecondsDuration `env:"STORE_INTERVAL"`
 	FileStoragePath OptionalString        `env:"FILE_STORAGE_PATH"`
@@ -34,14 +32,6 @@ func logSetFlagsServer(options *OptionsServer) {
 
 	if options.ServerAddress.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("-a=%s", options.ServerAddress.Value))
-	}
-
-	if options.ReportInterval.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-r=%s", options.ReportInterval.Duration))
-	}
-
-	if options.PollInterval.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-p=%s", options.PollInterval.Duration))
 	}
 
 	if options.StoreInterval.BeenSet {
@@ -86,14 +76,6 @@ func logSetEnvServer(options *OptionsServer) {
 
 	if options.ServerAddress.BeenSet {
 		setEnv = append(setEnv, fmt.Sprintf("ADDRESS=%s", options.ServerAddress.Value))
-	}
-
-	if options.ReportInterval.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("REPORT_INTERVAL=%s", options.ReportInterval.Duration))
-	}
-
-	if options.PollInterval.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("POLL_INTERVAL=%s", options.PollInterval.Duration))
 	}
 
 	if options.StoreInterval.BeenSet {
@@ -142,8 +124,6 @@ func ReadFlags(args []string) *OptionsServer {
 
 	finalOptions := OptionsServer{
 		ServerAddress:   OptionalString{Value: "localhost:8080", BeenSet: false},
-		PollInterval:    CustomSecondsDuration{Duration: time.Second * 2, BeenSet: false},
-		ReportInterval:  CustomSecondsDuration{Duration: time.Second * 10, BeenSet: false},
 		StoreInterval:   CustomSecondsDuration{Duration: time.Second * 300, BeenSet: false},
 		FileStoragePath: OptionalString{Value: "storage.dat", BeenSet: false},
 		DatabaseDSN: OptionalString{Value: "postgres://default_user:default_password@localhost:5432/metrics_db?sslmode=disable",
@@ -165,16 +145,6 @@ func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 	if newValues.ServerAddress.BeenSet {
 		mergeInto.ServerAddress = newValues.ServerAddress
 		mergeInto.ServerAddress.BeenSet = true
-	}
-
-	if newValues.PollInterval.BeenSet {
-		mergeInto.PollInterval = newValues.PollInterval
-		mergeInto.PollInterval.BeenSet = true
-	}
-
-	if newValues.ReportInterval.BeenSet {
-		mergeInto.ReportInterval = newValues.ReportInterval
-		mergeInto.ReportInterval.BeenSet = true
 	}
 
 	if newValues.StoreInterval.BeenSet {
@@ -221,18 +191,16 @@ func getOptionsServer(args []string) (*OptionsServer, error) {
 
 	opt := &OptionsServer{}
 
-	fs := flag.NewFlagSet("metrics-aggregator", flag.ContinueOnError)
+	fs := flag.NewFlagSet("metrics-aggregator-server", flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // optional: silence flag errors in tests
 
 	fs.Var(&opt.ServerAddress, "a", "port on which the server should run")
-	fs.Var(&opt.ReportInterval, "r", "how often console utility should send metrics")
-	fs.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")
 
 	fs.Var(&opt.StoreInterval, "i", "интервал времени в секундах, по истечении которого"+
 		" текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)")
 	fs.Var(&opt.FileStoragePath, "f", "путь до файла, куда "+
 		"сохраняются текущие значения. Имя файла для значения по умолчанию придумайте сами.")
-	fs.Var(&opt.Restore, "e", "булево значение (true/false), определяющее, "+
+	fs.Var(&opt.Restore, "r", "булево значение (true/false), определяющее, "+
 		"следует ли загружать ранее сохранённые значения из указанного файла при старте сервера")
 	fs.Var(&opt.DatabaseDSN, "d", "connection string/dsn для postgres базы данных")
 	fs.Var(&opt.MigrationsFolder, "m", "относительный путь до миграций, например ./migrations")
