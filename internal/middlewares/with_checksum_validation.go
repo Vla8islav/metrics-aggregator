@@ -17,7 +17,10 @@ func WithChecksum(key string, logger *zap.Logger) Middleware {
 				return
 			}
 
-			handleOutgoingSigning(w, r, key, next)
+			err := handleOutgoingSigning(w, r, key, next)
+			if err != nil {
+				logger.Warn("outgoing validation failure", zap.Error(err))
+			}
 
 		})
 
@@ -54,16 +57,15 @@ func handleInboundValidation(w http.ResponseWriter, r *http.Request, key string,
 	return true
 }
 
-func handleOutgoingSigning(w http.ResponseWriter, r *http.Request, key string, next http.Handler) {
+func handleOutgoingSigning(w http.ResponseWriter, r *http.Request, key string, next http.Handler) error {
 
 	capturingWriter := newCapturingSignResponseWriter(w, key)
 
-	w.Header().Set("Custom-Header-Before", "blahblahblah before original")
 	next.ServeHTTP(capturingWriter, r) // Сначала вызываем следующий обработчик, чтобы записать данные в буфер
 
-	// Теперь вычисляем подпись и добавляем её в заголовок
-	signature := helpers.Sha256WithKeyHex(capturingWriter.bodyCopy.Bytes(), []byte(key))
-	w.Header().Set(helpers.ShaSimpleSignatureHeader, signature)
-	w.Header().Set("Custom-Header-After", "blahblahblah after original")
-
+	err := capturingWriter.FlushToOriginal()
+	if err != nil {
+		return err
+	}
+	return nil
 }
