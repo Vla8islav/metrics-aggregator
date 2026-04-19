@@ -21,7 +21,7 @@ type OptionsServer struct {
 	DatabaseDSN      OptionalString `env:"DATABASE_DSN"`
 	MigrationsFolder OptionalString `env:"MIGRATIONS_FOLDER"`
 
-	SecretKey OptionalString `env:"SECRET_KEY"`
+	SecretKey OptionalString `env:"KEY"`
 }
 
 func logSetFlagsServer(options *OptionsServer) {

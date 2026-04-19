@@ -47,7 +47,6 @@ func handleInboundValidation(w http.ResponseWriter, r *http.Request, key string,
 	if payloadHash != requestShaHeaderValue {
 		logger.Warn("invalid signature provided, calculated hash: " + payloadHash +
 			" doesn't match provided hash: " + requestShaHeaderValue +
-			" payload " + string(payloadData) +
 			" secret " + key)
 		http.Error(w, "invalid signature", http.StatusBadRequest)
 		return false

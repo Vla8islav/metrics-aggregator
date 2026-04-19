@@ -13,6 +13,7 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	"go.uber.org/zap"
 )
 
 type Agent struct {
@@ -23,9 +24,10 @@ type Agent struct {
 
 	gauges *models.Stats
 	config *config.OptionsClient
+	logger *zap.Logger
 }
 
-func NewAgent(currentConfig *config.OptionsClient) *Agent {
+func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
 	reportInterval := currentConfig.ReportInterval.Duration
@@ -40,6 +42,7 @@ func NewAgent(currentConfig *config.OptionsClient) *Agent {
 		reportInterval: reportInterval,
 		gauges:         s,
 		config:         currentConfig,
+		logger:         logger,
 	}
 }
 
@@ -67,10 +70,13 @@ func (a *Agent) Start(ctx context.Context) {
 				return
 			}
 		case <-reportTicker.C:
-			a.report(ctx)
+			err = a.report(ctx)
+			if err != nil {
+				a.logger.Warn("Failed to report metrics", zap.Error(err))
+			}
 		}
-	}
 
+	}
 }
 
 func (a *Agent) report(ctx context.Context) error {
@@ -170,6 +176,7 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	if err != nil {
 		return fmt.Errorf("couldn't marshal metrics payload: %w", err)
 	}
+	a.logger.Info("sending batch payload", zap.String("payload", string(payloadBytes)))
 
 	payloadBytesCompressed, err := helpers.GzipCompress(payloadBytes)
 	if err != nil {

@@ -7,12 +7,19 @@ import (
 
 	"github.com/Vla8islav/metrics-aggregator/internal/agent"
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
+	"go.uber.org/zap"
 )
 
 func main() {
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("failed to initialize logger: %v", err)
+	}
+	defer logger.Sync() // flushes buffer, if any
+
 	currentConfig := config.ReadFlagsClient(os.Args[1:])
 
-	ag := agent.NewAgent(currentConfig)
+	ag := agent.NewAgent(currentConfig, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

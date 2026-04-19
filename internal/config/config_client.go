@@ -15,7 +15,7 @@ type OptionsClient struct {
 	PollInterval   CustomSecondsDuration `env:"POLL_INTERVAL"`
 	ReportInterval CustomSecondsDuration `env:"REPORT_INTERVAL"`
 
-	SecretKey OptionalString `env:"SECRET_KEY"`
+	SecretKey OptionalString `env:"KEY"`
 }
 
 func logSetFlagsClient(options *OptionsClient) {
