@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	currentConfig := config.ReadFlags(os.Args[1:])
+	currentConfig := config.ReadFlagsClient(os.Args[1:])
 
 	ag := agent.NewAgent(currentConfig)
 

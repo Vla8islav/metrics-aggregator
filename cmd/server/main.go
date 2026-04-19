@@ -22,7 +22,7 @@ func main() {
 	}
 	defer logger.Sync() // flushes buffer, if any
 
-	currentConfig := config.ReadFlags(os.Args[1:])
+	currentConfig := config.ReadFlagsServer(os.Args[1:])
 	logger.Info("starting server ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	var db domain.MetricRepository

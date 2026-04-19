@@ -112,7 +112,7 @@ func logSetEnvServer(options *OptionsServer) {
 	}
 }
 
-func ReadFlags(args []string) *OptionsServer {
+func ReadFlagsServer(args []string) *OptionsServer {
 	cmdOptions, err := getOptionsServer(args)
 	if err != nil {
 		log.Fatalln(err)
