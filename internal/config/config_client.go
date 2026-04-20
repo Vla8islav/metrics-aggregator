@@ -11,9 +11,10 @@ import (
 )
 
 type OptionsClient struct {
-	ServerAddress  OptionalString        `env:"ADDRESS"`
-	PollInterval   CustomSecondsDuration `env:"POLL_INTERVAL"`
-	ReportInterval CustomSecondsDuration `env:"REPORT_INTERVAL"`
+	ServerAddress  OptionalString          `env:"ADDRESS"`
+	PollInterval   OptionalSecondsDuration `env:"POLL_INTERVAL"`
+	ReportInterval OptionalSecondsDuration `env:"REPORT_INTERVAL"`
+	RateLimit      OptionalInt             `env:"RATE_LIMIT"`
 
 	SecretKey OptionalString `env:"KEY"`
 }
@@ -38,6 +39,10 @@ func logSetFlagsClient(options *OptionsClient) {
 
 	if options.SecretKey.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("-k=%s", options.SecretKey.Value))
+	}
+
+	if options.RateLimit.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-k=%s", options.RateLimit.Value))
 	}
 
 	if len(setFlags) == 0 {
@@ -72,6 +77,10 @@ func logSetEnvClient(options *OptionsClient) {
 		setEnv = append(setEnv, fmt.Sprintf("SECRET_KEY=%s", options.SecretKey.Value))
 	}
 
+	if options.RateLimit.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("SECRET_KEY=%s", options.RateLimit.Value))
+	}
+
 	if len(setEnv) == 0 {
 		log.Println("no environment variables were set")
 		return
@@ -94,9 +103,10 @@ func ReadFlagsClient(args []string) *OptionsClient {
 
 	finalOptions := OptionsClient{
 		ServerAddress:  OptionalString{Value: "localhost:8080", BeenSet: false},
-		PollInterval:   CustomSecondsDuration{Duration: time.Second * 2, BeenSet: false},
-		ReportInterval: CustomSecondsDuration{Duration: time.Second * 10, BeenSet: false},
+		PollInterval:   OptionalSecondsDuration{Duration: time.Second * 2, BeenSet: false},
+		ReportInterval: OptionalSecondsDuration{Duration: time.Second * 10, BeenSet: false},
 		SecretKey:      OptionalString{Value: "", BeenSet: false},
+		RateLimit:      OptionalInt{Value: 10, BeenSet: false},
 	}
 
 	// env options are the priority
@@ -127,6 +137,11 @@ func mergeOptionsClient(mergeInto *OptionsClient, newValues OptionsClient) {
 		mergeInto.SecretKey = newValues.SecretKey
 		mergeInto.SecretKey.BeenSet = true
 	}
+
+	if newValues.RateLimit.BeenSet {
+		mergeInto.RateLimit = newValues.RateLimit
+		mergeInto.RateLimit.BeenSet = true
+	}
 }
 
 func getEnvOptionsClient() *OptionsClient {
@@ -150,6 +165,8 @@ func getOptionsClient(args []string) (*OptionsClient, error) {
 	fs.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")
 
 	fs.Var(&opt.SecretKey, "k", "симметричный ключ шифрования для подписи сообщений")
+
+	fs.Var(&opt.SecretKey, "l", "потолок одновременных запросов делается к серверу, RATE_LIMIT")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err

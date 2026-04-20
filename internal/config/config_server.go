@@ -14,9 +14,9 @@ import (
 type OptionsServer struct {
 	ServerAddress OptionalString `env:"ADDRESS"`
 
-	StoreInterval   CustomSecondsDuration `env:"STORE_INTERVAL"`
-	FileStoragePath OptionalString        `env:"FILE_STORAGE_PATH"`
-	Restore         OptionalBool          `env:"RESTORE"`
+	StoreInterval   OptionalSecondsDuration `env:"STORE_INTERVAL"`
+	FileStoragePath OptionalString          `env:"FILE_STORAGE_PATH"`
+	Restore         OptionalBool            `env:"RESTORE"`
 
 	DatabaseDSN      OptionalString `env:"DATABASE_DSN"`
 	MigrationsFolder OptionalString `env:"MIGRATIONS_FOLDER"`
@@ -124,7 +124,7 @@ func ReadFlagsServer(args []string) *OptionsServer {
 
 	finalOptions := OptionsServer{
 		ServerAddress:   OptionalString{Value: "localhost:8080", BeenSet: false},
-		StoreInterval:   CustomSecondsDuration{Duration: time.Second * 300, BeenSet: false},
+		StoreInterval:   OptionalSecondsDuration{Duration: time.Second * 300, BeenSet: false},
 		FileStoragePath: OptionalString{Value: "storage.dat", BeenSet: false},
 		DatabaseDSN: OptionalString{Value: "postgres://default_user:default_password@localhost:5432/metrics_db?sslmode=disable",
 			BeenSet: false},

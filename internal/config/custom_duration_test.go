@@ -61,7 +61,7 @@ func TestCustomSecondsDuration_Set(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			var d CustomSecondsDuration
+			var d OptionalSecondsDuration
 
 			err := d.Set(tt.input)
 			if tt.wantErr {
@@ -84,7 +84,7 @@ func TestCustomSecondsDuration_Set(t *testing.T) {
 
 func TestCustomSecondsDuration_String(t *testing.T) {
 	t.Parallel()
-	d := CustomSecondsDuration{Duration: 3 * time.Second}
+	d := OptionalSecondsDuration{Duration: 3 * time.Second}
 
 	got := d.String()
 	want := "3s"
@@ -96,7 +96,7 @@ func TestCustomSecondsDuration_String(t *testing.T) {
 
 func TestCustomSecondsDuration_UnmarshalText(t *testing.T) {
 	t.Parallel()
-	var d CustomSecondsDuration
+	var d OptionalSecondsDuration
 
 	err := d.UnmarshalText([]byte("15"))
 	if err != nil {
