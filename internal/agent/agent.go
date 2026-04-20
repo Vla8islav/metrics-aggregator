@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
@@ -48,34 +49,58 @@ func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
 
 func (a *Agent) Start(ctx context.Context) {
 
-	// init the tickers
-	pollTicker := time.NewTicker(a.pollInterval)
-	defer pollTicker.Stop()
-
-	reportTicker := time.NewTicker(a.reportInterval)
-	defer reportTicker.Stop()
-
 	err := a.gauges.Update()
 	if err != nil {
+		a.logger.Error("failed to update gauges", zap.Error(err))
 		return
 	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		a.runMetricsGatherer(ctx)
+	}()
+
+	go func() {
+		defer wg.Done()
+		a.runReporter(ctx)
+	}()
+
+	wg.Wait()
+
+}
+
+func (a *Agent) runMetricsGatherer(ctx context.Context) {
+	ticker := time.NewTicker(a.pollInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-pollTicker.C:
-			err = a.gauges.Update()
-			if err != nil {
-				return
+		case <-ticker.C:
+			if err := a.gauges.Update(); err != nil {
+				a.logger.Warn("failed to gather metrics", zap.Error(err))
 			}
-		case <-reportTicker.C:
-			err = a.report(ctx)
-			if err != nil {
+		}
+	}
+}
+
+func (a *Agent) runReporter(ctx context.Context) {
+	ticker := time.NewTicker(a.reportInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := a.report(ctx); err != nil {
 				a.logger.Warn("Failed to report metrics", zap.Error(err))
 			}
 		}
-
 	}
 }
 
