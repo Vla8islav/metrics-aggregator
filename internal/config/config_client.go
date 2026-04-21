@@ -42,7 +42,7 @@ func logSetFlagsClient(options *OptionsClient) {
 	}
 
 	if options.RateLimit.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-k=%s", options.RateLimit.Value))
+		setFlags = append(setFlags, fmt.Sprintf("-l=%d", options.RateLimit.Value))
 	}
 
 	if len(setFlags) == 0 {
