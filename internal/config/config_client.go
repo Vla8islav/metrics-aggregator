@@ -166,7 +166,7 @@ func getOptionsClient(args []string) (*OptionsClient, error) {
 
 	fs.Var(&opt.SecretKey, "k", "симметричный ключ шифрования для подписи сообщений")
 
-	fs.Var(&opt.SecretKey, "l", "потолок одновременных запросов делается к серверу, RATE_LIMIT")
+	fs.Var(&opt.RateLimit, "l", "потолок одновременных запросов делается к серверу, RATE_LIMIT")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err

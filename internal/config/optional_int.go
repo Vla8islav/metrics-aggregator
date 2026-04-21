@@ -10,12 +10,16 @@ type OptionalInt struct {
 	BeenSet bool
 }
 
-func (b *OptionalInt) String() int {
-	return b.Value
+func (b *OptionalInt) String() string {
+	return strconv.Itoa(b.Value)
 }
 
-func (b *OptionalInt) Set(s int) error {
-	b.Value = s
+func (b *OptionalInt) Set(s string) error {
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return err
+	}
+	b.Value = val
 	b.BeenSet = true
 	return nil
 }
