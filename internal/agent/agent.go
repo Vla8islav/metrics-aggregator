@@ -22,16 +22,22 @@ type Agent struct {
 	serverAddr     string
 	pollInterval   time.Duration
 	reportInterval time.Duration
+	rateLimit      int
 
 	gauges *models.Stats
 	config *config.OptionsClient
 	logger *zap.Logger
+	ctx    context.Context
 }
 
-func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
+func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger, ctx context.Context) *Agent {
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
 	reportInterval := currentConfig.ReportInterval.Duration
+	rateLimit := currentConfig.RateLimit.Value
+	if rateLimit <= 0 {
+		rateLimit = 1
+	}
 
 	s := models.NewStats()
 	retryClient := helpers.NewHTTPRetryClient(helpers.DefaultShouldRetryStatus,
@@ -44,6 +50,8 @@ func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
 		gauges:         s,
 		config:         currentConfig,
 		logger:         logger,
+		ctx:            ctx,
+		rateLimit:      rateLimit,
 	}
 }
 
@@ -55,51 +63,78 @@ func (a *Agent) Start(ctx context.Context) {
 		return
 	}
 
+	jobs := make(chan job)
+	results := make(chan result)
+
 	var wg sync.WaitGroup
-	wg.Add(2)
+	for i := 1; i <= a.rateLimit; i++ {
+		wg.Add(1)
+		go a.workerReport(i, jobs, results, &wg)
+	}
 
 	go func() {
-		defer wg.Done()
-		a.runMetricsGatherer(ctx)
+		wg.Wait()
+		close(results)
 	}()
 
 	go func() {
-		defer wg.Done()
-		a.runReporter(ctx)
+		for res := range results {
+			if res.Err != nil {
+				a.logger.Warn("report job failed", zap.Int("jobID", res.JobID), zap.Error(res.Err))
+			}
+		}
 	}()
 
-	wg.Wait()
-
+	a.runMetricsGatherer(ctx, jobs)
 }
 
-func (a *Agent) runMetricsGatherer(ctx context.Context) {
+func (a *Agent) runMetricsGatherer(ctx context.Context, jobs chan<- job) {
 	ticker := time.NewTicker(a.pollInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
+			close(jobs)
 			return
 		case <-ticker.C:
 			if err := a.gauges.Update(); err != nil {
 				a.logger.Warn("failed to gather metrics", zap.Error(err))
+				continue
+			}
+
+			select {
+			case <-ctx.Done():
+				close(jobs)
+				return
+			case jobs <- job{ID: int(time.Now().UnixNano())}:
 			}
 		}
 	}
 }
 
-func (a *Agent) runReporter(ctx context.Context) {
-	ticker := time.NewTicker(a.reportInterval)
-	defer ticker.Stop()
+type job struct {
+	ID int
+}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if err := a.report(ctx); err != nil {
-				a.logger.Warn("Failed to report metrics", zap.Error(err))
-			}
+type result struct {
+	JobID int
+	Value string
+	Err   error
+}
+
+func (a *Agent) workerReport(id int, jobs <-chan job, results chan<- result, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for job := range jobs {
+		err := a.report(a.ctx)
+		if err == nil {
+			a.logger.Debug("report job finished", zap.Int("worker", id), zap.Int("jobID", job.ID))
+		}
+		results <- result{
+			JobID: job.ID,
+			Value: fmt.Sprintf("workerReport %d processed job %d", id, job.ID),
+			Err:   err,
 		}
 	}
 }
@@ -228,7 +263,7 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("server returned %s for %s payload", resp.Status, string(payloadBytes))
+		return fmt.Errorf("server returned %s for %s payload", resp.Status, string(payloadBytes)[:40])
 	}
 	return nil
 }

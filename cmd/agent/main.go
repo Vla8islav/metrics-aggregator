@@ -19,10 +19,10 @@ func main() {
 
 	currentConfig := config.ReadFlagsClient(os.Args[1:])
 
-	ag := agent.NewAgent(currentConfig, logger)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	ag := agent.NewAgent(currentConfig, logger, ctx)
 
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
