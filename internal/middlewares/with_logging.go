@@ -13,8 +13,7 @@ func WithLogging(logger *zap.Logger) Middleware {
 			method := zap.String("method", r.Method)
 			uri := zap.String("path", r.URL.Path)
 			lrw := &loggingResponseWriter{ResponseWriter: w,
-				responseData: &responseData{},
-				wroteHeader:  false}
+				responseData: &responseData{}}
 
 			start := time.Now()
 

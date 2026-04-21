@@ -15,7 +15,6 @@ type (
 	loggingResponseWriter struct {
 		http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
 		responseData        *responseData
-		wroteHeader         bool
 	}
 )
 
