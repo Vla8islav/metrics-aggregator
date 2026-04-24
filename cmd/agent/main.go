@@ -30,6 +30,6 @@ func main() {
 	secret := currentConfig.SecretKey.Value
 	log.Printf("agent started: metric_poll=%s report=%s server=%s secret=%s",
 		pollInterval, reportInterval, serverAddr, secret)
-	ag.Start(ctx)
+	ag.Start()
 
 }

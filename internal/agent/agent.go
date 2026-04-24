@@ -55,7 +55,7 @@ func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger, ctx conte
 	}
 }
 
-func (a *Agent) Start(ctx context.Context) {
+func (a *Agent) Start() {
 
 	err := a.gauges.Update()
 	if err != nil {
@@ -85,9 +85,9 @@ func (a *Agent) Start(ctx context.Context) {
 		}
 	}()
 
-	go a.runMetricsGatherer(ctx, jobs)
+	go a.runMetricsGatherer(a.ctx)
 
-	a.runReporter(ctx, jobs)
+	a.runReporter(a.ctx, jobs)
 }
 
 func (a *Agent) runMetricsGatherer(ctx context.Context) {
@@ -263,24 +263,17 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	return nil
 }
 
-func (a *Agent) runReporter(ctx context.Context, jobs chan job) {
+func (a *Agent) runReporter(ctx context.Context, jobs chan<- job) {
 	ticker := time.NewTicker(a.reportInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			close(jobs)
 			return
 		case <-ticker.C:
-			if err := a.gauges.Update(); err != nil {
-				a.logger.Warn("failed to gather metrics", zap.Error(err))
-				continue
-			}
-
 			select {
 			case <-ctx.Done():
-				close(jobs)
 				return
 			case jobs <- job{ID: int(time.Now().UnixNano())}:
 			}
