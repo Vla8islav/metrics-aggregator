@@ -78,7 +78,7 @@ func logSetEnvClient(options *OptionsClient) {
 	}
 
 	if options.RateLimit.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("SECRET_KEY=%d", options.RateLimit.Value))
+		setEnv = append(setEnv, fmt.Sprintf("RATE_LIMIT=%d", options.RateLimit.Value))
 	}
 
 	if len(setEnv) == 0 {

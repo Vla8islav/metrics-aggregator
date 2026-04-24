@@ -61,7 +61,7 @@ func (a *Agent) Start(ctx context.Context) {
 		return
 	}
 
-	jobs := make(chan job)
+	jobs := make(chan job, a.rateLimit)
 	results := make(chan result)
 
 	var wg sync.WaitGroup
