@@ -89,7 +89,7 @@ func (a *Agent) Start(ctx context.Context) {
 }
 
 func (a *Agent) runMetricsGatherer(ctx context.Context, jobs chan<- job) {
-	ticker := time.NewTicker(a.pollInterval)
+	ticker := time.NewTicker(a.reportInterval)
 	defer ticker.Stop()
 
 	for {
