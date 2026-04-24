@@ -27,10 +27,9 @@ type Agent struct {
 	gauges *models.Stats
 	config *config.OptionsClient
 	logger *zap.Logger
-	ctx    context.Context
 }
 
-func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger, ctx context.Context) *Agent {
+func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
 	reportInterval := currentConfig.ReportInterval.Duration
@@ -50,12 +49,11 @@ func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger, ctx conte
 		gauges:         s,
 		config:         currentConfig,
 		logger:         logger,
-		ctx:            ctx,
 		rateLimit:      rateLimit,
 	}
 }
 
-func (a *Agent) Start() {
+func (a *Agent) Start(ctx context.Context) {
 
 	err := a.gauges.Update()
 	if err != nil {
@@ -69,7 +67,7 @@ func (a *Agent) Start() {
 	var wg sync.WaitGroup
 	for i := 1; i <= a.rateLimit; i++ {
 		wg.Add(1)
-		go a.workerReport(i, jobs, results, &wg)
+		go a.workerReport(ctx, i, jobs, results, &wg)
 	}
 
 	go func() {
@@ -85,9 +83,9 @@ func (a *Agent) Start() {
 		}
 	}()
 
-	go a.runMetricsGatherer(a.ctx)
+	go a.runMetricsGatherer(ctx)
 
-	a.runReporter(a.ctx, jobs)
+	a.runReporter(ctx, jobs)
 }
 
 func (a *Agent) runMetricsGatherer(ctx context.Context) {
@@ -118,11 +116,11 @@ type result struct {
 	Err   error
 }
 
-func (a *Agent) workerReport(id int, jobs <-chan job, results chan<- result, wg *sync.WaitGroup) {
+func (a *Agent) workerReport(ctx context.Context, id int, jobs <-chan job, results chan<- result, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for j := range jobs {
-		err := a.report(a.ctx)
+		err := a.report(ctx)
 		if err == nil {
 			a.logger.Debug("report job finished", zap.Int("worker", id), zap.Int("jobID", j.ID))
 		}

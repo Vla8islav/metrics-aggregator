@@ -22,13 +22,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ag := agent.NewAgent(currentConfig, logger, ctx)
+	ag := agent.NewAgent(currentConfig, logger)
 
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
 	reportInterval := currentConfig.ReportInterval.Duration
 	log.Printf("agent started: metric_poll=%s report=%s server=%s secret_is_set=%v",
 		pollInterval, reportInterval, serverAddr, currentConfig.SecretKey.BeenSet)
-	ag.Start()
+	ag.Start(ctx)
 
 }
