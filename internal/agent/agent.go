@@ -85,17 +85,18 @@ func (a *Agent) Start(ctx context.Context) {
 		}
 	}()
 
-	a.runMetricsGatherer(ctx, jobs)
+	go a.runMetricsGatherer(ctx, jobs)
+
+	a.runReporter(ctx, jobs)
 }
 
-func (a *Agent) runMetricsGatherer(ctx context.Context, jobs chan<- job) {
-	ticker := time.NewTicker(a.reportInterval)
+func (a *Agent) runMetricsGatherer(ctx context.Context) {
+	ticker := time.NewTicker(a.pollInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			close(jobs)
 			return
 		case <-ticker.C:
 			if err := a.gauges.Update(); err != nil {
@@ -103,12 +104,6 @@ func (a *Agent) runMetricsGatherer(ctx context.Context, jobs chan<- job) {
 				continue
 			}
 
-			select {
-			case <-ctx.Done():
-				close(jobs)
-				return
-			case jobs <- job{ID: int(time.Now().UnixNano())}:
-			}
 		}
 	}
 }
@@ -126,14 +121,14 @@ type result struct {
 func (a *Agent) workerReport(id int, jobs <-chan job, results chan<- result, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	for job := range jobs {
+	for j := range jobs {
 		err := a.report(a.ctx)
 		if err == nil {
-			a.logger.Debug("report job finished", zap.Int("worker", id), zap.Int("jobID", job.ID))
+			a.logger.Debug("report job finished", zap.Int("worker", id), zap.Int("jobID", j.ID))
 		}
 		results <- result{
-			JobID: job.ID,
-			Value: fmt.Sprintf("workerReport %d processed job %d", id, job.ID),
+			JobID: j.ID,
+			Value: fmt.Sprintf("workerReport %d processed j %d", id, j.ID),
 			Err:   err,
 		}
 	}
@@ -266,4 +261,29 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 		return fmt.Errorf("server returned %s for %s payload", resp.Status, string(payloadBytes)[:40])
 	}
 	return nil
+}
+
+func (a *Agent) runReporter(ctx context.Context, jobs chan job) {
+	ticker := time.NewTicker(a.reportInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			close(jobs)
+			return
+		case <-ticker.C:
+			if err := a.gauges.Update(); err != nil {
+				a.logger.Warn("failed to gather metrics", zap.Error(err))
+				continue
+			}
+
+			select {
+			case <-ctx.Done():
+				close(jobs)
+				return
+			case jobs <- job{ID: int(time.Now().UnixNano())}:
+			}
+		}
+	}
 }
