@@ -41,7 +41,6 @@ func main() {
 	handlerWithMW := middlewares.ChainMiddlewares(
 		r,
 		middlewares.WithLogging(logger),
-		middlewares.WithGzipCompression(),
 	)
 
 	if currentConfig.SecretKey.BeenSet {
@@ -50,6 +49,11 @@ func main() {
 			middlewares.WithChecksum(currentConfig.SecretKey.Value, logger),
 		)
 	}
+	// compression should come last
+	handlerWithMW = middlewares.ChainMiddlewares(
+		handlerWithMW,
+		middlewares.WithGzipCompression(),
+	)
 
 	srvImpl := &http.Server{Addr: currentConfig.ServerAddress.Value,
 		Handler:      handlerWithMW,
