@@ -68,4 +68,5 @@ func handleOutgoingCompression(w http.ResponseWriter, r *http.Request, next http
 	w.Header().Set("Content-Encoding", "gzip")
 	// передаём обработчику страницы переменную типа gzipWriter для вывода данных
 	next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
+
 }

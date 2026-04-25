@@ -8,10 +8,13 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"sync"
 	"time"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	"go.uber.org/zap"
 )
 
 type Agent struct {
@@ -19,11 +22,22 @@ type Agent struct {
 	serverAddr     string
 	pollInterval   time.Duration
 	reportInterval time.Duration
+	rateLimit      int
 
 	gauges *models.Stats
+	config *config.OptionsClient
+	logger *zap.Logger
 }
 
-func NewAgent(serverAddr string, pollInterval, reportInterval time.Duration) *Agent {
+func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
+	serverAddr := "http://" + currentConfig.ServerAddress.Value
+	pollInterval := currentConfig.PollInterval.Duration
+	reportInterval := currentConfig.ReportInterval.Duration
+	rateLimit := currentConfig.RateLimit.Value
+	if rateLimit <= 0 {
+		rateLimit = 1
+	}
+
 	s := models.NewStats()
 	retryClient := helpers.NewHTTPRetryClient(helpers.DefaultShouldRetryStatus,
 		5*time.Second, 2)
@@ -33,37 +47,89 @@ func NewAgent(serverAddr string, pollInterval, reportInterval time.Duration) *Ag
 		pollInterval:   pollInterval,
 		reportInterval: reportInterval,
 		gauges:         s,
+		config:         currentConfig,
+		logger:         logger,
+		rateLimit:      rateLimit,
 	}
 }
 
 func (a *Agent) Start(ctx context.Context) {
 
-	// init the tickers
-	pollTicker := time.NewTicker(a.pollInterval)
-	defer pollTicker.Stop()
-
-	reportTicker := time.NewTicker(a.reportInterval)
-	defer reportTicker.Stop()
-
 	err := a.gauges.Update()
 	if err != nil {
+		a.logger.Error("failed to update gauges", zap.Error(err))
 		return
 	}
+
+	jobs := make(chan job, a.rateLimit)
+	results := make(chan result)
+
+	var wg sync.WaitGroup
+	for i := 1; i <= a.rateLimit; i++ {
+		wg.Add(1)
+		go a.workerReport(ctx, i, jobs, results, &wg)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	go func() {
+		for res := range results {
+			if res.Err != nil {
+				a.logger.Warn("report job failed", zap.Int("jobID", res.JobID), zap.Error(res.Err))
+			}
+		}
+	}()
+
+	go a.runMetricsGatherer(ctx)
+
+	a.runReporter(ctx, jobs)
+}
+
+func (a *Agent) runMetricsGatherer(ctx context.Context) {
+	ticker := time.NewTicker(a.pollInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-pollTicker.C:
-			err = a.gauges.Update()
-			if err != nil {
-				return
+		case <-ticker.C:
+			if err := a.gauges.Update(); err != nil {
+				a.logger.Warn("failed to gather metrics", zap.Error(err))
+				continue
 			}
-		case <-reportTicker.C:
-			a.report(ctx)
+
 		}
 	}
+}
 
+type job struct {
+	ID int
+}
+
+type result struct {
+	JobID int
+	Value string
+	Err   error
+}
+
+func (a *Agent) workerReport(ctx context.Context, id int, jobs <-chan job, results chan<- result, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for j := range jobs {
+		err := a.report(ctx)
+		if err == nil {
+			a.logger.Debug("report job finished", zap.Int("worker", id), zap.Int("jobID", j.ID))
+		}
+		results <- result{
+			JobID: j.ID,
+			Value: fmt.Sprintf("workerReport %d processed j %d", id, j.ID),
+			Err:   err,
+		}
+	}
 }
 
 func (a *Agent) report(ctx context.Context) error {
@@ -140,6 +206,10 @@ func (a *Agent) send(ctx context.Context, metricType models.MetricType, metricNa
 	return nil
 }
 
+func (a *Agent) getSignatureHeaderValue(payloadBytes []byte) string {
+	return helpers.Sha256WithKeyHex(payloadBytes, []byte(a.config.SecretKey.Value))
+}
+
 func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	if metrics == nil {
 		return nil
@@ -159,6 +229,8 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	if err != nil {
 		return fmt.Errorf("couldn't marshal metrics payload: %w", err)
 	}
+	a.logger.Info("sending batch payload", zap.String("payload", string(payloadBytes)))
+
 	payloadBytesCompressed, err := helpers.GzipCompress(payloadBytes)
 	if err != nil {
 		return fmt.Errorf("couldn't compress metrics payload: %w", err)
@@ -173,6 +245,8 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
+	signatureHeaderValue := a.getSignatureHeaderValue(payloadBytes)
+	req.Header.Set(helpers.ShaSimpleSignatureHeader, signatureHeaderValue)
 
 	resp, err := a.client.Do(req)
 
@@ -182,7 +256,25 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("server returned %s for %s payload", resp.Status, string(payloadBytes))
+		return fmt.Errorf("server returned %s for %s payload", resp.Status, string(payloadBytes)[:40])
 	}
 	return nil
+}
+
+func (a *Agent) runReporter(ctx context.Context, jobs chan<- job) {
+	ticker := time.NewTicker(a.reportInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			select {
+			case <-ctx.Done():
+				return
+			case jobs <- job{ID: int(time.Now().UnixNano())}:
+			}
+		}
+	}
 }

@@ -116,7 +116,7 @@ func TestPostMetrics(t *testing.T) {
 
 			metricName := tt.vars["metricName"]
 
-			cfg := config.ReadFlags(nil)
+			cfg := config.ReadFlagsServer(nil)
 			db := repository.NewMemStorage(cfg)
 			zap := zaptest.NewLogger(t)
 			h := NewHandler(db, zap)

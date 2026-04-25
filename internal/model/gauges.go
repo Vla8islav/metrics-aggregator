@@ -4,10 +4,17 @@ import (
 	"math/rand"
 	"runtime"
 	"sync"
+	"time"
+
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 type Stats struct {
-	ms       runtime.MemStats
+	ms             runtime.MemStats
+	vmStat         *mem.VirtualMemoryStat
+	cpuUtilisation []float64
+
 	gauges   map[string]float64
 	counters map[string]int64
 
@@ -29,17 +36,31 @@ func NewStats() *Stats {
 func (s *Stats) GetGauges() map[string]float64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.gauges
+
+	out := make(map[string]float64, len(s.gauges))
+	for k, v := range s.gauges {
+		out[k] = v
+	}
+	return out
 }
 
 func (s *Stats) GetCounters() map[string]int64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.counters
+
+	out := make(map[string]int64, len(s.counters))
+	for k, v := range s.counters {
+		out[k] = v
+	}
+	return out
 }
 
 func (s *Stats) Update() error {
 	s.readMemStats()
+	err := s.readAdditionalMemStats()
+	if err != nil {
+		return err
+	}
 	s.incrementPollCount()
 	s.updateRandomValue()
 
@@ -79,6 +100,11 @@ func (s *Stats) Update() error {
 	// counter
 	s.counters["PollCount"] = s.PollCount
 
+	// additional info
+	s.gauges["TotalMemory"] = float64(s.vmStat.Total)
+	s.gauges["FreeMemory"] = float64(s.vmStat.Free)
+	s.gauges["CPUutilization1"] = s.cpuUtilisation[0]
+
 	return nil
 }
 
@@ -98,4 +124,25 @@ func (s *Stats) readMemStats() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	runtime.ReadMemStats(&s.ms)
+}
+
+func (s *Stats) readAdditionalMemStats() error {
+	vm, err := mem.VirtualMemory()
+	if err != nil {
+		return err
+	}
+
+	// this thing is slow
+	cpUtilisation, err := cpu.Percent(500*time.Millisecond, false)
+	if err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.vmStat = vm
+	s.cpuUtilisation = cpUtilisation
+
+	return nil
 }

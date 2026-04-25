@@ -7,15 +7,15 @@ import (
 	"time"
 )
 
-type CustomSecondsDuration struct {
+type OptionalSecondsDuration struct {
 	time.Duration
 	BeenSet bool
 }
 
 // a fancy go assertion because env is implicit and it's parsing is also implicit
-var _ encoding.TextUnmarshaler = (*CustomSecondsDuration)(nil)
+var _ encoding.TextUnmarshaler = (*OptionalSecondsDuration)(nil)
 
-func (d *CustomSecondsDuration) String() string {
+func (d *OptionalSecondsDuration) String() string {
 	return d.Duration.String()
 }
 
@@ -26,15 +26,9 @@ func absInt(x int) int {
 	return x
 }
 
-func (d *CustomSecondsDuration) Set(value string) error {
+func (d *OptionalSecondsDuration) Set(value string) error {
 	if dur, err := time.ParseDuration(value); err == nil {
 		d.Duration = dur
-		d.BeenSet = true
-		return nil
-	}
-
-	if value == "false" {
-		d.Duration = time.Duration(0)
 		d.BeenSet = true
 		return nil
 	}
@@ -50,6 +44,6 @@ func (d *CustomSecondsDuration) Set(value string) error {
 	return nil
 }
 
-func (d *CustomSecondsDuration) UnmarshalText(text []byte) error {
+func (d *OptionalSecondsDuration) UnmarshalText(text []byte) error {
 	return d.Set(string(text))
 }

@@ -16,7 +16,7 @@ import (
 )
 
 type PostgresStorage struct {
-	config     *config.Options
+	config     *config.OptionsServer
 	db         *sql.DB
 	classifier *PostgresErrorClassifier
 }
@@ -40,7 +40,7 @@ func (s *PostgresStorage) isRetriablePostgresError(err error) bool {
 	}
 }
 
-func NewPostgresStorage(config *config.Options, migrationsFolder string) (*PostgresStorage, error) {
+func NewPostgresStorage(config *config.OptionsServer, migrationsFolder string) (*PostgresStorage, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is nil")
 	}
