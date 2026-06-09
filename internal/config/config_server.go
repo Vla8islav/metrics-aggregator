@@ -21,6 +21,9 @@ type OptionsServer struct {
 	DatabaseDSN      OptionalString `env:"DATABASE_DSN"`
 	MigrationsFolder OptionalString `env:"MIGRATIONS_FOLDER"`
 
+	AuditURL  OptionalString `env:"AUDIT_URL"`
+	AuditFile OptionalString `env:"AUDIT_FILE"`
+
 	SecretKey OptionalString `env:"KEY"`
 }
 
@@ -56,6 +59,14 @@ func logSetFlagsServer(options *OptionsServer) {
 
 	if options.SecretKey.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("-k=%s", options.SecretKey.Value))
+	}
+
+	if options.AuditURL.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("--audit-url=%s", options.AuditURL.Value))
+	}
+
+	if options.AuditFile.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("--audit-file=%s", options.AuditFile.Value))
 	}
 
 	if len(setFlags) == 0 {
@@ -102,6 +113,14 @@ func logSetEnvServer(options *OptionsServer) {
 		setEnv = append(setEnv, fmt.Sprintf("SECRET_KEY=%s", options.SecretKey.Value))
 	}
 
+	if options.AuditURL.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("AUDIT_URL=%s", options.AuditURL.Value))
+	}
+
+	if options.AuditFile.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("AUDIT_FILE=%s", options.AuditFile.Value))
+	}
+
 	if len(setEnv) == 0 {
 		log.Println("no environment variables were set")
 		return
@@ -131,6 +150,8 @@ func ReadFlagsServer(args []string) *OptionsServer {
 		MigrationsFolder: OptionalString{Value: "./migrations", BeenSet: false},
 		Restore:          OptionalBool{Value: true, BeenSet: false},
 		SecretKey:        OptionalString{Value: "", BeenSet: false},
+		AuditFile:        OptionalString{Value: "", BeenSet: false},
+		AuditURL:         OptionalString{Value: "", BeenSet: false},
 	}
 
 	// env options are the priority
@@ -176,6 +197,16 @@ func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 		mergeInto.SecretKey = newValues.SecretKey
 		mergeInto.SecretKey.BeenSet = true
 	}
+
+	if newValues.AuditURL.BeenSet {
+		mergeInto.AuditURL = newValues.AuditURL
+		mergeInto.AuditURL.BeenSet = true
+	}
+
+	if newValues.AuditFile.BeenSet {
+		mergeInto.AuditFile = newValues.AuditFile
+		mergeInto.AuditFile.BeenSet = true
+	}
 }
 
 func getEnvOptions() *OptionsServer {
@@ -205,6 +236,9 @@ func getOptionsServer(args []string) (*OptionsServer, error) {
 	fs.Var(&opt.DatabaseDSN, "d", "connection string/dsn для postgres базы данных")
 	fs.Var(&opt.MigrationsFolder, "m", "относительный путь до миграций, например ./migrations")
 	fs.Var(&opt.SecretKey, "k", "симметричный ключ шифрования для подписи сообщений")
+
+	fs.Var(&opt.AuditURL, "audit-url", "адрес сервера аудита")
+	fs.Var(&opt.AuditFile, "audit-file", "путь до файла с публичным ключом аудита")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err
