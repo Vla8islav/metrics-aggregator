@@ -1,0 +1,50 @@
+# === Heavy writes (URL-param, agent-style) ===
+POST http://localhost:45101/update/gauge/Alloc/12345.6
+
+POST http://localhost:45101/update/gauge/HeapInuse/98765.4
+
+POST http://localhost:45101/update/counter/PollCount/1
+
+POST http://localhost:45101/update/counter/RandomValue/42
+
+# === JSON-body writes (universal) ===
+POST http://localhost:45101/update/
+Content-Type: application/json
+@bodies/update_gauge.json
+
+POST http://localhost:45101/update/
+Content-Type: application/json
+@bodies/update_counter.json
+
+# === Batch (heaviest, repeated 4x to weight) ===
+POST http://localhost:45101/updates/
+Content-Type: application/json
+@bodies/batch.json
+
+POST http://localhost:45101/updates/
+Content-Type: application/json
+@bodies/batch.json
+
+POST http://localhost:45101/updates/
+Content-Type: application/json
+@bodies/batch.json
+
+POST http://localhost:45101/updates/
+Content-Type: application/json
+@bodies/batch.json
+
+# === Reads ===
+GET http://localhost:45101/value/gauge/Alloc
+
+GET http://localhost:45101/value/counter/PollCount
+
+POST http://localhost:45101/value/
+Content-Type: application/json
+@bodies/value_gauge.json
+
+# === Misc ===
+GET http://localhost:45101/ping
+
+GET http://localhost:45101/
+
+
