@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/audit"
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/domain"
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
@@ -38,9 +39,24 @@ func main() {
 	h := handler.NewHandler(srvApp, logger)
 	r := handler.NewRouter(h)
 
+	var sinks []audit.Sink
+	if currentConfig.AuditFile.BeenSet {
+		fileSink := audit.NewFileSink(currentConfig.AuditFile.Value)
+		sinks = append(sinks, fileSink)
+	}
+	if currentConfig.AuditURL.BeenSet {
+		webSink, err := audit.NewWebSink(currentConfig.AuditURL.Value)
+		if err != nil {
+			logger.Fatal("failed to initialize web sink", zap.Error(err))
+		}
+		sinks = append(sinks, webSink)
+	}
+	publisher := audit.NewPublisher(sinks...)
+
 	handlerWithMW := middlewares.ChainMiddlewares(
 		r,
 		middlewares.WithLogging(logger),
+		middlewares.WithAudit(publisher),
 	)
 
 	if currentConfig.SecretKey.BeenSet {

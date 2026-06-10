@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 )
@@ -13,7 +14,7 @@ func NewFileSink(path string) *FileSink {
 	return &FileSink{path: path}
 }
 
-func (s *FileSink) Write(e Event) error {
+func (s *FileSink) Write(_ context.Context, e Event) error {
 	payload, err := json.Marshal(e)
 	if err != nil {
 		return err
