@@ -11,7 +11,7 @@ func WithAudit(publisher *audit.Publisher) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-			data := &audit.RequestData{}
+			data := audit.NewRequestData()
 			ctx := audit.WithRequestData(r.Context(), data)
 			r = r.WithContext(ctx)
 
@@ -20,6 +20,7 @@ func WithAudit(publisher *audit.Publisher) Middleware {
 			next.ServeHTTP(w, r)
 
 			event := audit.Event{
+				Operation:  data.Operation,
 				Time:       start,
 				Metrics:    data.Metrics,
 				RemoteAddr: r.RemoteAddr,

@@ -5,7 +5,14 @@ import "context"
 type requestDataKey struct{}
 
 type RequestData struct {
-	Metrics []string
+	Operation string
+	Metrics   []string
+}
+
+func NewRequestData() *RequestData {
+	return &RequestData{
+		Metrics: make([]string, 0),
+	}
 }
 
 func WithRequestData(ctx context.Context, data *RequestData) context.Context {
@@ -28,4 +35,17 @@ func AddMetric(ctx context.Context, name string) {
 	}
 
 	data.Metrics = append(data.Metrics, name)
+}
+
+func SetOperation(ctx context.Context, operation string) {
+	if operation == "" {
+		return
+	}
+
+	data := FromContext(ctx)
+	if data == nil {
+		return
+	}
+
+	data.Operation = operation
 }

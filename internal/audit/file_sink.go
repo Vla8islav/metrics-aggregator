@@ -25,7 +25,7 @@ func (s *FileSink) Write(_ context.Context, e Event) error {
 		return err
 	}
 	defer f.Close()
-	_, err = f.Write(payload)
+	_, err = f.Write(append(payload, '\n'))
 	if err != nil {
 		return err
 	}

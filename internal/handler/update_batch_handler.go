@@ -5,10 +5,12 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/audit"
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
 func (h *Handler) UpdateBatchMetrics(w http.ResponseWriter, r *http.Request) {
+	audit.SetOperation(r.Context(), "UpdateBatchMetrics")
 
 	if r.Method != http.MethodPost {
 		h.writeMethodNotAllowed(w, "only POST method is allowed")
@@ -32,6 +34,10 @@ func (h *Handler) UpdateBatchMetrics(w http.ResponseWriter, r *http.Request) {
 		h.writeBadRequest(w, "couldn't parse requestBody with metrics :"+err.Error())
 		return
 	}
+	for _, metric := range requestBodySerialised {
+		audit.AddMetric(r.Context(), metric.ID)
+	}
+
 	err = h.service.UpdateMetrics(r.Context(), requestBodySerialised)
 	if err != nil {
 		h.logger.Error("failed to update metrics: " + err.Error())
