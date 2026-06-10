@@ -36,7 +36,7 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metricType := models.MetricType(requestBodySerialised.MType)
+	metricType := requestBodySerialised.MType
 	if _, found := models.ValidMetricTypes[metricType]; !found {
 		h.writeBadRequest(w, "invalid metric type: "+string(metricType))
 		return
