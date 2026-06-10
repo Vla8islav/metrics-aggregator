@@ -6,6 +6,7 @@ import (
 
 	"github.com/Vla8islav/metrics-aggregator/internal/audit"
 )
+import _ "net/http/pprof"
 
 func WithAudit(publisher *audit.Publisher) Middleware {
 	return func(next http.Handler) http.Handler {
