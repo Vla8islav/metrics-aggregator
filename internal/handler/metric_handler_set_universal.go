@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/audit"
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
@@ -44,6 +45,8 @@ func (h *Handler) SetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 		h.writeBadRequest(w, "metric ID cannot be empty")
 		return
 	}
+
+	audit.AddMetric(r.Context(), requestBodySerialised.ID)
 
 	switch metricType {
 	case models.Gauge:

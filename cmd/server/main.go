@@ -49,6 +49,7 @@ func main() {
 			middlewares.WithChecksum(currentConfig.SecretKey.Value, logger),
 		)
 	}
+
 	// compression should come last
 	handlerWithMW = middlewares.ChainMiddlewares(
 		handlerWithMW,

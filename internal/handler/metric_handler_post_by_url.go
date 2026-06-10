@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/audit"
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/gorilla/mux"
 )
@@ -20,7 +21,10 @@ func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	metricTypeStr := requestComponents["metricType"]
 	metricType := models.MetricType(metricTypeStr)
+
 	metricName := requestComponents["metricName"]
+	audit.AddMetric(r.Context(), metricName)
+
 	metricValue := requestComponents["metricValue"]
 
 	if _, found := models.ValidMetricTypes[metricType]; !found {

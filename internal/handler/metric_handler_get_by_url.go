@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/audit"
 	"github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 	"github.com/gorilla/mux"
@@ -23,6 +24,7 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	metricTypeStr := requestComponents["metricType"]
 	metricType := models.MetricType(metricTypeStr)
 	metricName := requestComponents["metricName"]
+	audit.AddMetric(r.Context(), metricName)
 
 	if _, found := models.ValidMetricTypes[metricType]; !found {
 		log.Printf("Invalid metric type: %s", metricType)
