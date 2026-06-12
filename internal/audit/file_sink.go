@@ -6,14 +6,17 @@ import (
 	"os"
 )
 
+// FileSink writes audit events to a file as JSON lines
 type FileSink struct {
 	path string
 }
 
+// NewFileSink creates a FileSink that writes audit events to path
 func NewFileSink(path string) *FileSink {
 	return &FileSink{path: path}
 }
 
+// Write appends e to the sink file as a JSON line
 func (s *FileSink) Write(_ context.Context, e Event) error {
 	payload, err := json.Marshal(e)
 	if err != nil {

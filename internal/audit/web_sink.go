@@ -12,11 +12,13 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 )
 
+// WebSink writes audit events to an HTTP endpoint
 type WebSink struct {
 	client   *helpers.HTTPRetryClient
 	auditURL string
 }
 
+// NewWebSink creates a WebSink that posts audit events to auditURL
 func NewWebSink(auditURL string) (*WebSink, error) {
 	retryClient := helpers.NewHTTPRetryClient(helpers.DefaultShouldRetryStatus,
 		5*time.Second, 2)
@@ -43,6 +45,7 @@ func validateURL(auditURL string) error {
 	return nil
 }
 
+// Write posts e to the configured audit endpoint as a gzipped JSON payload
 func (s *WebSink) Write(ctx context.Context, e Event) error {
 
 	payloadBytes, err := json.Marshal(e)
