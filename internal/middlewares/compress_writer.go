@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 // Честно спер из примеров
@@ -29,6 +30,15 @@ func WithGzipCompression() Middleware {
 		})
 
 	}
+}
+
+var gzipPool = sync.Pool{
+	New: func() any {
+		// NewWriterLevel only errors on an invalid level —
+		// impossible with the gzip.BestSpeed constant, so safe to swallow.
+		w, _ := gzip.NewWriterLevel(io.Discard, gzip.BestSpeed)
+		return w
+	},
 }
 
 func handleInboundCompression(w http.ResponseWriter, r *http.Request) bool {
@@ -58,12 +68,12 @@ func handleOutgoingCompression(w http.ResponseWriter, r *http.Request, next http
 	}
 
 	// создаём gzip.Writer поверх текущего w
-	gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-	if err != nil {
-		io.WriteString(w, err.Error())
-		return
-	}
-	defer gz.Close()
+	gz := gzipPool.Get().(*gzip.Writer)
+	gz.Reset(w) // reuse
+	defer func() {
+		gz.Close()
+		gzipPool.Put(gz)
+	}()
 
 	w.Header().Set("Content-Encoding", "gzip")
 	// передаём обработчику страницы переменную типа gzipWriter для вывода данных

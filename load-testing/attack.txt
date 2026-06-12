@@ -7,28 +7,34 @@ POST http://localhost:45101/update/counter/RandomValue/42
 # gauge update
 POST http://localhost:45101/update/
 Content-Type: application/json
-@bodies/update_gauge.json
+Content-Encoding: gzip
+@bodies/update_gauge.json.gz
 
 POST http://localhost:45101/update/
 Content-Type: application/json
-@bodies/update_counter.json
+Content-Encoding: gzip
+@bodies/update_counter.json.gz
 
 # Batches
 POST http://localhost:45101/updates/
 Content-Type: application/json
-@bodies/batch.json
+Content-Encoding: gzip
+@bodies/batch.json.gz
 
 POST http://localhost:45101/updates/
 Content-Type: application/json
-@bodies/batch2.json
+Content-Encoding: gzip
+@bodies/batch.json.gz
 
 POST http://localhost:45101/updates/
 Content-Type: application/json
-@bodies/batch.json
+Content-Encoding: gzip
+@bodies/batch.json.gz
 
 POST http://localhost:45101/updates/
 Content-Type: application/json
-@bodies/batch2.json
+Content-Encoding: gzip
+@bodies/batch2.json.gz
 
 # Reads
 GET http://localhost:45101/value/gauge/Alloc
