@@ -37,6 +37,7 @@ var metricsPageTemplate = template.Must(template.New("metrics").Parse(`
 </body>
 </html>`))
 
+// GetAllMetrics prints a simple HTML with all of the exported metrics
 func (h *Handler) GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		h.writeMethodNotAllowed(w, "only GET method is allowed")

@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// GetMetrics GET only, returns /value/{metricType}/{metricName}
 func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {

@@ -8,17 +8,18 @@ import (
 	"sync"
 )
 
-// Честно спер из примеров
+// gzipWriter wraps a ResponseWriter and writes response bodies through a gzip writer
 type gzipWriter struct {
 	http.ResponseWriter
 	Writer io.Writer
 }
 
+// Write compresses b before writing it to the underlying response
 func (w gzipWriter) Write(b []byte) (int, error) {
-	// w.Writer будет отвечать за gzip-сжатие, поэтому пишем в него
 	return w.Writer.Write(b)
 }
 
+// WithGzipCompression returns mw that decompresses gzip request bodies and compresses gzip-responses
 func WithGzipCompression() Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +33,8 @@ func WithGzipCompression() Middleware {
 	}
 }
 
+// gzipPool reuses gzip writers between requests to reduce allocations
+// was part of the memory optimisation
 var gzipPool = sync.Pool{
 	New: func() any {
 		// NewWriterLevel only errors on an invalid level —
@@ -41,6 +44,7 @@ var gzipPool = sync.Pool{
 	},
 }
 
+// handleInboundCompression replaces a gzip-compressed request body with a decompressed reader
 func handleInboundCompression(w http.ResponseWriter, r *http.Request) bool {
 	if r.Header.Get("Content-Encoding") == "gzip" {
 		gzipReader, err := gzip.NewReader(r.Body)
@@ -55,6 +59,7 @@ func handleInboundCompression(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
+// handleOutgoingCompression compresses the response when the client accepts gzip encoding
 func handleOutgoingCompression(w http.ResponseWriter, r *http.Request, next http.Handler) {
 	// проверяем, что клиент поддерживает gzip-сжатие
 	// это упрощённый пример. В реальном приложении следует проверять все

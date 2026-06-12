@@ -10,6 +10,7 @@ import (
 	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
+// SetMetricsUniversal POST only json payload with metric value in, 200 on the successful set is out
 func (h *Handler) SetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {

@@ -7,6 +7,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// WithLogging middleware that logs request metadata and response details
+//
+// records the HTTP method, path, elapsed handling time, response size, and status code
 func WithLogging(logger *zap.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -9,6 +9,7 @@ import (
 	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
+// UpdateBatchMetrics POST only, batch json with multiple metrics values in, 200 OK if they were set
 func (h *Handler) UpdateBatchMetrics(w http.ResponseWriter, r *http.Request) {
 	audit.SetOperation(r.Context(), "UpdateBatchMetrics")
 

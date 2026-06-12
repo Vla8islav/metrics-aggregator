@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// SetMetrics sets the metric by value /update/{metricType}/{metricName}/{metricValue}
 func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {

@@ -11,6 +11,7 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 )
 
+// GetMetricsUniversal POST only, json payload with the metric name in, metric value out
 func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
