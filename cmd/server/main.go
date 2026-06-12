@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/audit"
@@ -16,7 +17,14 @@ import (
 	"go.uber.org/zap"
 )
 
+import _ "net/http/pprof"
+
 func main() {
+
+	//< for testing only, delete in prod
+	runtime.SetBlockProfileRate(1)
+	runtime.SetMutexProfileFraction(1)
+
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("failed to initialize logger: %v", err)
@@ -78,7 +86,9 @@ func main() {
 		WriteTimeout: 5 * time.Second,
 	}
 
+	go func() { log.Println(http.ListenAndServe("localhost:6060", nil)) }()
 	err = srvImpl.ListenAndServe()
+
 	if err != nil {
 		logger.Fatal(err.Error())
 		return
