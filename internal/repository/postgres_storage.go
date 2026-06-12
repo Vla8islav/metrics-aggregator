@@ -50,9 +50,15 @@ func NewPostgresStorage(config *config.OptionsServer, migrationsFolder string) (
 
 	dsn := config.DatabaseDSN.Value
 	db, err := sql.Open("pgx", dsn)
+
 	if err != nil {
 		return nil, err
 	}
+	/// performance optimisations
+	db.SetConnMaxIdleTime(time.Minute * 2)
+	db.SetMaxOpenConns(20)
+	db.SetMaxIdleConns(20)
+
 	storage := PostgresStorage{config: config, db: db, classifier: NewPostgresErrorClassifier()}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
