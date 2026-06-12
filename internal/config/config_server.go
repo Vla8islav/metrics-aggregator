@@ -10,7 +10,9 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
-// OptionsServer TODO: implement a clean option separation
+// OptionsServer configuration parameters for the metrics server
+//
+// Values' order of precedence: environment vars, command-line flags, defaults
 type OptionsServer struct {
 	ServerAddress OptionalString `env:"ADDRESS"`
 
@@ -131,6 +133,10 @@ func logSetEnvServer(options *OptionsServer) {
 	}
 }
 
+// ReadFlagsServer reads server configuration from command-line arguments and environment variables.
+//
+// Returns the final merged server options, using defaults first, command-line flags second,
+// and environment variables last.
 func ReadFlagsServer(args []string) *OptionsServer {
 	cmdOptions, err := getOptionsServer(args)
 	if err != nil {

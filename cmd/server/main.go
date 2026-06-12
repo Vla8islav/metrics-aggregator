@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/audit"
@@ -22,8 +21,8 @@ import (
 func main() {
 
 	//< for testing only, delete in prod
-	runtime.SetBlockProfileRate(1)
-	runtime.SetMutexProfileFraction(1)
+	//runtime.SetBlockProfileRate(1)
+	//runtime.SetMutexProfileFraction(1)
 
 	logger, err := zap.NewProduction()
 	if err != nil {
