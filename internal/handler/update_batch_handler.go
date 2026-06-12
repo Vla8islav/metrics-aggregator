@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/audit"
-	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
 func (h *Handler) UpdateBatchMetrics(w http.ResponseWriter, r *http.Request) {

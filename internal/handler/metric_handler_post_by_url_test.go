@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
-	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"

@@ -15,9 +15,9 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/middlewares"
 	"github.com/Vla8islav/metrics-aggregator/internal/service"
 	"go.uber.org/zap"
-)
 
-import _ "net/http/pprof"
+	_ "net/http/pprof"
+)
 
 func main() {
 

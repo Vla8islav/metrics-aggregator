@@ -13,7 +13,7 @@ import (
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
-	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 	"go.uber.org/zap"
 )
 

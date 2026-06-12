@@ -3,7 +3,7 @@ package domain
 import (
 	"context"
 
-	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
 type MetricRepository interface {

@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/audit"
-	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 	"github.com/gorilla/mux"
 )

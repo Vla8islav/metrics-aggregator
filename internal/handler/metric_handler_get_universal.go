@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 )
 
