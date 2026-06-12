@@ -7,71 +7,71 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// честно спер из примера
-
-// ErrorClassification тип для классификации ошибок
+// PGErrorClassification identifies whether a PostgreSQL error can be retried
 type PGErrorClassification int
 
 const (
-	// NonRetriable - операцию не следует повторять
+	// NonRetriable means the failed operation should not be retried
 	NonRetriable PGErrorClassification = iota
 
-	// Retriable - операцию можно повторить
+	// Retriable means the failed operation may be retried
 	Retriable
 )
 
-// PostgresErrorClassifier классификатор ошибок PostgreSQL
+// PostgresErrorClassifier classifies PostgreSQL errors by their retryability
 type PostgresErrorClassifier struct{}
 
+// NewPostgresErrorClassifier creates a PostgreSQL error classifier
 func NewPostgresErrorClassifier() *PostgresErrorClassifier {
 	return &PostgresErrorClassifier{}
 }
 
-// Classify классифицирует ошибку и возвращает PGErrorClassification
+// Classify returns the retry classification for err
 func (c *PostgresErrorClassifier) Classify(err error) PGErrorClassification {
 	if err == nil {
 		return NonRetriable
 	}
 
-	// Проверяем и конвертируем в pgconn.PgError, если это возможно
+	// Check whether err wraps a PostgreSQL error
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		return СlassifyPgError(pgErr)
 	}
 
-	// По умолчанию считаем ошибку неповторяемой
+	// Treat unknown errors as non-retryable by default
 	return NonRetriable
 }
 
+// СlassifyPgError returns the retry classification for a PostgreSQL error
 func СlassifyPgError(pgErr *pgconn.PgError) PGErrorClassification {
-	// Коды ошибок PostgreSQL: https://www.postgresql.org/docs/current/errcodes-appendix.html
+	// PostgreSQL error codes: https://www.postgresql.org/docs/current/errcodes-appendix.html
 
 	switch pgErr.Code {
-	// Класс 08 - Ошибки соединения
+	// Class 08 - connection exceptions
 	case pgerrcode.ConnectionException,
 		pgerrcode.ConnectionDoesNotExist,
 		pgerrcode.ConnectionFailure:
 		return Retriable
 
-	// Класс 40 - Откат транзакции
+	// Class 40 - transaction rollback errors
 	case pgerrcode.TransactionRollback, // 40000
 		pgerrcode.SerializationFailure, // 40001
 		pgerrcode.DeadlockDetected:     // 40P01
 		return Retriable
 
-	// Класс 57 - Ошибка оператора
+	// Class 57 - operator intervention errors
 	case pgerrcode.CannotConnectNow: // 57P03
 		return Retriable
 	}
 
-	// Можно добавить более конкретные проверки с использованием констант pgerrcode
+	// Explicitly mark known client-side and schema errors as non-retryable
 	switch pgErr.Code {
-	// Класс 22 - Ошибки данных
+	// Class 22 - data exceptions
 	case pgerrcode.DataException,
 		pgerrcode.NullValueNotAllowedDataException:
 		return NonRetriable
 
-	// Класс 23 - Нарушение ограничений целостности
+	// Class 23 - integrity constraint violations
 	case pgerrcode.IntegrityConstraintViolation,
 		pgerrcode.RestrictViolation,
 		pgerrcode.NotNullViolation,
@@ -80,7 +80,7 @@ func СlassifyPgError(pgErr *pgconn.PgError) PGErrorClassification {
 		pgerrcode.CheckViolation:
 		return NonRetriable
 
-	// Класс 42 - Синтаксические ошибки
+	// Class 42 - syntax and access rule violations
 	case pgerrcode.SyntaxErrorOrAccessRuleViolation,
 		pgerrcode.SyntaxError,
 		pgerrcode.UndefinedColumn,
@@ -89,6 +89,6 @@ func СlassifyPgError(pgErr *pgconn.PgError) PGErrorClassification {
 		return NonRetriable
 	}
 
-	// По умолчанию считаем ошибку неповторяемой
+	// Treat unknown PostgreSQL errors as non-retryable by default
 	return NonRetriable
 }

@@ -15,12 +15,14 @@ import (
 	goose "github.com/pressly/goose/v3"
 )
 
+// PostgresStorage stores metrics in PostgreSQL and applies database migrations on startup
 type PostgresStorage struct {
 	config     *config.OptionsServer
 	db         *sql.DB
 	classifier *PostgresErrorClassifier
 }
 
+// isRetriablePostgresError reports whether err is a retryable PostgreSQL error
 func (s *PostgresStorage) isRetriablePostgresError(err error) bool {
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) {
@@ -40,6 +42,7 @@ func (s *PostgresStorage) isRetriablePostgresError(err error) bool {
 	}
 }
 
+// NewPostgresStorage opens a PostgreSQL connection, verifies it, and runs pending migrations
 func NewPostgresStorage(config *config.OptionsServer, migrationsFolder string) (*PostgresStorage, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is nil")
@@ -54,7 +57,7 @@ func NewPostgresStorage(config *config.OptionsServer, migrationsFolder string) (
 	if err != nil {
 		return nil, err
 	}
-	/// performance optimisations
+	// Configure connection pool limits.
 	db.SetConnMaxIdleTime(time.Minute * 2)
 	db.SetMaxOpenConns(20)
 	db.SetMaxIdleConns(20)
@@ -70,7 +73,7 @@ func NewPostgresStorage(config *config.OptionsServer, migrationsFolder string) (
 		return nil, fmt.Errorf("failed to ping postgres %w", err)
 	}
 
-	// Run all pending migrations from migrations/
+	// Run all pending migrations from migrationsFolder.
 	if err := goose.Up(db, migrationsFolder); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("apply goose migrations: %w", err)
@@ -79,9 +82,9 @@ func NewPostgresStorage(config *config.OptionsServer, migrationsFolder string) (
 	return &storage, nil
 }
 
+// Ping checks whether the PostgreSQL connection is available
 func (s *PostgresStorage) Ping(ctx context.Context) error {
 
-	// verify connection
 	if err := s.db.PingContext(ctx); err != nil {
 		return fmt.Errorf("couldn't ping postgres db: %w", err)
 	}
@@ -89,6 +92,7 @@ func (s *PostgresStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
+// Restore verifies the persisted metric state when restore is enabled
 func (s *PostgresStorage) Restore(ctx context.Context) error {
 	if s.config.Restore.Value {
 		err := s.LoadState(ctx)
@@ -99,6 +103,7 @@ func (s *PostgresStorage) Restore(ctx context.Context) error {
 	return nil
 }
 
+// GetAll returns all stored counters and gauges
 func (s *PostgresStorage) GetAll(ctx context.Context) (models.MetricsExport, error) {
 	select {
 	case <-ctx.Done():
@@ -123,6 +128,7 @@ func (s *PostgresStorage) GetAll(ctx context.Context) (models.MetricsExport, err
 
 }
 
+// getCounters returns all stored counters
 func (s *PostgresStorage) getCounters(ctx context.Context) (map[string]int64, error) {
 	countersFinal := make(map[string]int64)
 	err := s.withRetry(ctx, func() error {
@@ -155,6 +161,7 @@ func (s *PostgresStorage) getCounters(ctx context.Context) (map[string]int64, er
 	return countersFinal, nil
 }
 
+// getGauges returns all stored gauges
 func (s *PostgresStorage) getGauges(ctx context.Context) (map[string]float64, error) {
 	gaugesFinal := make(map[string]float64)
 	err := s.withRetry(ctx, func() error {
@@ -187,6 +194,7 @@ func (s *PostgresStorage) getGauges(ctx context.Context) (map[string]float64, er
 	return gaugesFinal, nil
 }
 
+// IncrementCounter adds number to the named counter
 func (s *PostgresStorage) IncrementCounter(ctx context.Context, name string, number int64) error {
 	return s.withRetry(ctx, func() error {
 		_, err := s.db.ExecContext(ctx, `
@@ -202,6 +210,7 @@ func (s *PostgresStorage) IncrementCounter(ctx context.Context, name string, num
 	})
 }
 
+// SetGauge updates the current value of the named gauge metric
 func (s *PostgresStorage) SetGauge(ctx context.Context, name string, gauge float64) error {
 	return s.withRetry(ctx, func() error {
 		_, err := s.db.ExecContext(ctx, `
@@ -217,6 +226,7 @@ func (s *PostgresStorage) SetGauge(ctx context.Context, name string, gauge float
 	})
 }
 
+// batchSetGauge stores multiple gauge values in one retryable transaction
 func (s *PostgresStorage) batchSetGauge(ctx context.Context, names []string, gauges []float64) error {
 	if len(names) == 0 {
 		return nil
@@ -241,6 +251,7 @@ func (s *PostgresStorage) batchSetGauge(ctx context.Context, names []string, gau
 	)
 }
 
+// batchSetGaugeTx stores multiple gauge values within tx
 func (s *PostgresStorage) batchSetGaugeTx(ctx context.Context,
 	tx *sql.Tx,
 	positionalArguments []string,
@@ -257,6 +268,7 @@ func (s *PostgresStorage) batchSetGaugeTx(ctx context.Context,
 	return nil
 }
 
+// batchIncrementCounters increments multiple counter values in one retryable tx
 func (s *PostgresStorage) batchIncrementCounters(ctx context.Context, names []string, counters []int64) error {
 	if len(names) == 0 {
 		return nil
@@ -281,6 +293,7 @@ func (s *PostgresStorage) batchIncrementCounters(ctx context.Context, names []st
 	)
 }
 
+// batchIncrementCountersTx increments multiple counter values within tx
 func (s *PostgresStorage) batchIncrementCountersTx(ctx context.Context,
 	tx *sql.Tx,
 	positionalArguments []string,
@@ -297,6 +310,7 @@ func (s *PostgresStorage) batchIncrementCountersTx(ctx context.Context,
 	return nil
 }
 
+// GetGauge returns the current value of the named gauge metric
 func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	var value float64
 	err := s.withRetry(ctx, func() error {
@@ -314,6 +328,7 @@ func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (float64, e
 	return value, nil
 }
 
+// GetCounter returns the current value of the named counter
 func (s *PostgresStorage) GetCounter(ctx context.Context, name string) (int64, error) {
 	var value int64
 	err := s.withRetry(ctx, func() error {
@@ -329,6 +344,7 @@ func (s *PostgresStorage) GetCounter(ctx context.Context, name string) (int64, e
 
 }
 
+// LoadState verifies that persisted metric state is available from PostgreSQL
 func (s *PostgresStorage) LoadState(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -336,11 +352,12 @@ func (s *PostgresStorage) LoadState(ctx context.Context) error {
 	default:
 	}
 
-	// here load is handled by the DB
+	// PostgreSQL already owns the persisted state, so no explicit load is needed
 
 	return nil
 }
 
+// UpdateMetrics applies a batch of metric updates
 func (s *PostgresStorage) UpdateMetrics(ctx context.Context, input []models.Metrics) error {
 	if len(input) == 0 {
 		return nil
