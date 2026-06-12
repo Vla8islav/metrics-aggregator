@@ -3,7 +3,7 @@
 CURRENT_TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 CURRENT_COMMIT=$(git rev-parse --short HEAD)
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-OUT_DIR="$SCRIPT_DIR/${CURRENT_TIMESTAMP}-${CURRENT_COMMIT}"
+OUT_DIR="$SCRIPT_DIR/perf-${CURRENT_TIMESTAMP}-${CURRENT_COMMIT}"
 
 mkdir -p "$OUT_DIR"
 
