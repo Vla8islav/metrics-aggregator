@@ -49,6 +49,7 @@ func main() {
 	var sinks []audit.Sink
 	if currentConfig.AuditFile.BeenSet {
 		fileSink := audit.NewFileSink(currentConfig.AuditFile.Value)
+		defer fileSink.Close()
 		sinks = append(sinks, fileSink)
 	}
 	if currentConfig.AuditURL.BeenSet {

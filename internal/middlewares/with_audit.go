@@ -19,7 +19,7 @@ func WithAudit(publisher *audit.Publisher) Middleware {
 			ctx := audit.WithRequestData(r.Context(), data)
 			r = r.WithContext(ctx)
 
-			start := time.Now()
+			start := audit.UnixTime{Time: time.Now()}
 
 			next.ServeHTTP(w, r)
 
