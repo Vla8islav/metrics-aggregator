@@ -2,15 +2,14 @@ package audit
 
 import (
 	"context"
-	"time"
 )
 
 // Event describes an audited metrics operation
 type Event struct {
-	Time       time.Time `json:"ts"`
-	Metrics    []string  `json:"metrics"`
-	RemoteAddr string    `json:"ip_address"`
-	Operation  string    `json:"operation"`
+	Time       UnixTime `json:"ts"`
+	Metrics    []string `json:"metrics"`
+	RemoteAddr string   `json:"ip_address"`
+	Operation  string   `json:"operation"`
 }
 
 // Sink writes audit events to a destination
