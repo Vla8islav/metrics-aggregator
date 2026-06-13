@@ -22,18 +22,18 @@ func NewFileSink(path string) *FileSink {
 
 // Write appends e to the sink file as a JSON line
 func (s *FileSink) Write(_ context.Context, e Event) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	payload, err := json.Marshal(e)
 	if err != nil {
 		return err
 	}
 
 	if s.filterDescriptor == nil {
-		s.mu.Lock()
 		s.filterDescriptor, err = os.OpenFile(s.path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
 			return err
 		}
-		s.mu.Unlock()
 
 	}
 	_, err = s.filterDescriptor.Write(append(payload, '\n'))
