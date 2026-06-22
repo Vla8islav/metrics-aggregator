@@ -1,3 +1,4 @@
+// Package service service layer of the onion arch. In our case - very thin
 package service
 
 import (

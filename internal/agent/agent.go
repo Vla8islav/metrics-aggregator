@@ -1,3 +1,4 @@
+// Package agent periodically collects runtime metrics and reports them to the server
 package agent
 
 import (

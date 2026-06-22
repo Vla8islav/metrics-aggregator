@@ -1,3 +1,4 @@
+// Package domain all business entities of our metric server
 package domain
 
 import (

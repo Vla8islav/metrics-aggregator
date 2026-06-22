@@ -1,3 +1,4 @@
+// Package repository package for working with data, mostly postgres
 package repository
 
 import (

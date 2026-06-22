@@ -1,3 +1,4 @@
+// Package handler server handlers, nothing more to say, really
 package handler
 
 import (

@@ -1,3 +1,4 @@
+// Package config parsing passed config values
 package config
 
 import (

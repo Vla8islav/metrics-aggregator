@@ -1,7 +1,12 @@
 package main
 
+// make static-lint
 import (
+	"github.com/Vla8islav/metrics-aggregator/internal/analyzer/noosexit"
+	"honnef.co/go/tools/quickfix"
+	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
+	"honnef.co/go/tools/stylecheck"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
@@ -22,9 +27,15 @@ func main() {
 		ctrlflow.Analyzer,
 		copylock.Analyzer,
 		lostcancel.Analyzer,
+		noosexit.Analyzer,
 	)
 	for _, v := range staticcheck.Analyzers {
 		analyzers = append(analyzers, v.Analyzer)
 	}
+	//не менее одного анализатора остальных классов пакета staticcheck.io;
+	analyzers = append(analyzers, simple.Analyzers[0].Analyzer)
+	analyzers = append(analyzers, stylecheck.Analyzers[0].Analyzer)
+	analyzers = append(analyzers, quickfix.Analyzers[0].Analyzer)
+
 	multichecker.Main(analyzers...)
 }
