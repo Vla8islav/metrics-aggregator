@@ -36,3 +36,6 @@ db-status: db-start
 
 generate:
 	go generate ./internal/mocks
+
+static-lint:
+	go run ./cmd/staticlint ./...
