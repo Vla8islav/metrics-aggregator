@@ -5,15 +5,18 @@ import (
 	"strconv"
 )
 
+// OptionalInt integer value that tracks whether it was explicitly set
 type OptionalInt struct {
 	Value   int
 	BeenSet bool
 }
 
+// String returns the integer value formatted as a string
 func (b *OptionalInt) String() string {
 	return strconv.Itoa(b.Value)
 }
 
+// Set parses s as an integer and marks the value as explicitly set
 func (b *OptionalInt) Set(s string) error {
 	val, err := strconv.Atoi(s)
 	if err != nil {
@@ -24,6 +27,7 @@ func (b *OptionalInt) Set(s string) error {
 	return nil
 }
 
+// UnmarshalText parses text as an integer and marks the value as explicitly set
 func (b *OptionalInt) UnmarshalText(text []byte) error {
 	v := string(text)
 	result, err := strconv.Atoi(v)

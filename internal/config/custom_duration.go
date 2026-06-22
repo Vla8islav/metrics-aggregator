@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// OptionalSecondsDuration duration flag value that accepts plain seconds or Go duration strings
 type OptionalSecondsDuration struct {
 	time.Duration
 	BeenSet bool
@@ -15,6 +16,7 @@ type OptionalSecondsDuration struct {
 // a fancy go assertion because env is implicit and it's parsing is also implicit
 var _ encoding.TextUnmarshaler = (*OptionalSecondsDuration)(nil)
 
+// String returns the duration formatted as a Go duration string.
 func (d *OptionalSecondsDuration) String() string {
 	return d.Duration.String()
 }
@@ -26,6 +28,7 @@ func absInt(x int) int {
 	return x
 }
 
+// Set parses value as a Go duration string or as a number of seconds in bare numeric
 func (d *OptionalSecondsDuration) Set(value string) error {
 	if dur, err := time.ParseDuration(value); err == nil {
 		d.Duration = dur
@@ -44,6 +47,7 @@ func (d *OptionalSecondsDuration) Set(value string) error {
 	return nil
 }
 
+// UnmarshalText parses text as a Go duration string or as a number of seconds
 func (d *OptionalSecondsDuration) UnmarshalText(text []byte) error {
 	return d.Set(string(text))
 }

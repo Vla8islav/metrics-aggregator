@@ -6,9 +6,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	"github.com/Vla8islav/metrics-aggregator/internal/audit"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
+// SetMetricsUniversal POST only json payload with metric value in, 200 on the successful set is out
 func (h *Handler) SetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
@@ -44,6 +46,8 @@ func (h *Handler) SetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 		h.writeBadRequest(w, "metric ID cannot be empty")
 		return
 	}
+
+	audit.AddMetric(r.Context(), requestBodySerialised.ID)
 
 	switch metricType {
 	case models.Gauge:

@@ -10,6 +10,8 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
+// OptionsClient configuration parameters for the metrics agent client
+// the order of precedence: env, command line, default value
 type OptionsClient struct {
 	ServerAddress  OptionalString          `env:"ADDRESS"`
 	PollInterval   OptionalSecondsDuration `env:"POLL_INTERVAL"`
@@ -91,6 +93,7 @@ func logSetEnvClient(options *OptionsClient) {
 	}
 }
 
+// ReadFlagsClient reads and merges client configuration from command-line flags and environment variables
 func ReadFlagsClient(args []string) *OptionsClient {
 	cmdOptions, err := getOptionsClient(args)
 	if err != nil {

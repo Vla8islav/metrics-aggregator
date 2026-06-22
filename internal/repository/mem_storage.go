@@ -14,6 +14,7 @@ import (
 	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 )
 
+// MemoryStorage stores metrics in memory and optionally persists them into a file
 type MemoryStorage struct {
 	namedCounter map[string]int64
 	namedGauge   map[string]float64
@@ -22,14 +23,17 @@ type MemoryStorage struct {
 	mu sync.RWMutex
 }
 
+// NewMemStorage creates an initialized MemoryStorage with empty metric maps
 func NewMemStorage(config *config.OptionsServer) *MemoryStorage {
 	return &MemoryStorage{namedGauge: make(map[string]float64), namedCounter: make(map[string]int64), config: config}
 }
 
+// Ping checks whether the storage is available
 func (s *MemoryStorage) Ping(_ context.Context) error {
 	return nil
 }
 
+// Restore loads persisted metric state when restore is enabled
 func (s *MemoryStorage) Restore(ctx context.Context) error {
 	if s.config.Restore.Value {
 		err := s.LoadState(ctx)
@@ -40,6 +44,7 @@ func (s *MemoryStorage) Restore(ctx context.Context) error {
 	return nil
 }
 
+// RunSaver periodically saves metric state until ctx is canceled
 func (s *MemoryStorage) RunSaver(ctx context.Context) error {
 	if s.config.Restore.Value && s.config.StoreInterval.Duration > 0 {
 		fileSaveTicker := time.NewTicker(s.config.StoreInterval.Duration)
@@ -61,6 +66,7 @@ func (s *MemoryStorage) RunSaver(ctx context.Context) error {
 	return nil
 }
 
+// GetAll returns copies of all stored counters and gauges
 func (s *MemoryStorage) GetAll(ctx context.Context) (models.MetricsExport, error) {
 	select {
 	case <-ctx.Done():
@@ -87,6 +93,7 @@ func (s *MemoryStorage) GetAll(ctx context.Context) (models.MetricsExport, error
 
 }
 
+// IncrementCounter adds number to the named counter
 func (s *MemoryStorage) IncrementCounter(ctx context.Context, name string, number int64) error {
 
 	select {
@@ -108,6 +115,7 @@ func (s *MemoryStorage) IncrementCounter(ctx context.Context, name string, numbe
 	return nil
 }
 
+// saveIfImmediateSaveIsSet saves the state immediately when synchronous persistence is configured
 func (s *MemoryStorage) saveIfImmediateSaveIsSet(ctx context.Context) error {
 	if s.config.Restore.Value && s.config.StoreInterval.Duration == 0 {
 		err := s.saveState(ctx)
@@ -118,6 +126,7 @@ func (s *MemoryStorage) saveIfImmediateSaveIsSet(ctx context.Context) error {
 	return nil
 }
 
+// SetGauge stores the current value of the named gauge metric
 func (s *MemoryStorage) SetGauge(ctx context.Context, name string, gauge float64) error {
 	select {
 	case <-ctx.Done():
@@ -134,6 +143,7 @@ func (s *MemoryStorage) SetGauge(ctx context.Context, name string, gauge float64
 	return nil
 }
 
+// GetGauge returns the current value of the named gauge metric
 func (s *MemoryStorage) GetGauge(ctx context.Context, name string) (float64, error) {
 	select {
 	case <-ctx.Done():
@@ -149,6 +159,7 @@ func (s *MemoryStorage) GetGauge(ctx context.Context, name string) (float64, err
 	return value, nil
 }
 
+// GetCounter returns the current value of the named counter
 func (s *MemoryStorage) GetCounter(ctx context.Context, name string) (int64, error) {
 	select {
 	case <-ctx.Done():
@@ -164,6 +175,7 @@ func (s *MemoryStorage) GetCounter(ctx context.Context, name string) (int64, err
 	return value, nil
 }
 
+// saveState writes all current metrics to the configured storage file
 func (s *MemoryStorage) saveState(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -195,6 +207,7 @@ func (s *MemoryStorage) saveState(ctx context.Context) error {
 	return nil
 }
 
+// LoadState restores counters and gauges from the configured storage file
 func (s *MemoryStorage) LoadState(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -242,6 +255,7 @@ func (s *MemoryStorage) LoadState(ctx context.Context) error {
 	return nil
 }
 
+// UpdateMetrics applies a batch of metric updates
 func (s *MemoryStorage) UpdateMetrics(ctx context.Context, input []models.Metrics) error {
 	if len(input) == 0 {
 		return nil

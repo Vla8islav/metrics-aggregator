@@ -7,10 +7,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/Vla8islav/metrics-aggregator/internal/repository"
 )
 
+// GetMetricsUniversal POST only, json payload with the metric name in, metric value out
 func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
@@ -36,7 +37,7 @@ func (h *Handler) GetMetricsUniversal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metricType := models.MetricType(requestBodySerialised.MType)
+	metricType := requestBodySerialised.MType
 	if _, found := models.ValidMetricTypes[metricType]; !found {
 		h.writeBadRequest(w, "invalid metric type: "+string(metricType))
 		return

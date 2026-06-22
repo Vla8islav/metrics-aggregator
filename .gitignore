@@ -26,3 +26,6 @@ vendor/
 .vscode
 
 storage.dat
+audit.log
+
+load-testing/perf-*

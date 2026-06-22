@@ -13,10 +13,11 @@ import (
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
-	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 	"go.uber.org/zap"
 )
 
+// Agent periodically collects runtime metrics and reports them to the server
 type Agent struct {
 	client         *helpers.HTTPRetryClient
 	serverAddr     string
@@ -29,6 +30,7 @@ type Agent struct {
 	logger *zap.Logger
 }
 
+// NewAgent creates an Agent configured with the provided client options and logger
 func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
@@ -53,6 +55,7 @@ func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
 	}
 }
 
+// Start begins metric collection and reporting until ctx is canceled
 func (a *Agent) Start(ctx context.Context) {
 
 	err := a.gauges.Update()
@@ -88,6 +91,7 @@ func (a *Agent) Start(ctx context.Context) {
 	a.runReporter(ctx, jobs)
 }
 
+// runMetricsGatherer periodically refreshes the agent's in-memory metric values
 func (a *Agent) runMetricsGatherer(ctx context.Context) {
 	ticker := time.NewTicker(a.pollInterval)
 	defer ticker.Stop()
@@ -106,16 +110,19 @@ func (a *Agent) runMetricsGatherer(ctx context.Context) {
 	}
 }
 
+// job represents a scheduled reporting task
 type job struct {
 	ID int
 }
 
+// result contains the outcome of a reporting job
 type result struct {
 	JobID int
 	Value string
 	Err   error
 }
 
+// workerReport processes reporting jobs and publishes their results
 func (a *Agent) workerReport(ctx context.Context, id int, jobs <-chan job, results chan<- result, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -132,6 +139,7 @@ func (a *Agent) workerReport(ctx context.Context, id int, jobs <-chan job, resul
 	}
 }
 
+// report builds a metrics payload from the current stats and sends it to the server
 func (a *Agent) report(ctx context.Context) error {
 	payload := make([]models.Metrics, 0)
 	// send gauges
@@ -152,6 +160,7 @@ func (a *Agent) report(ctx context.Context) error {
 	return nil
 }
 
+// send sends a single metric update to the server
 func (a *Agent) send(ctx context.Context, metricType models.MetricType, metricName string, gauge *float64, counter *int64) error {
 	if gauge == nil && counter == nil {
 		return fmt.Errorf("both gauge and counter are nil")
@@ -206,10 +215,12 @@ func (a *Agent) send(ctx context.Context, metricType models.MetricType, metricNa
 	return nil
 }
 
+// getSignatureHeaderValue returns the request signature for payloadBytes
 func (a *Agent) getSignatureHeaderValue(payloadBytes []byte) string {
 	return helpers.Sha256WithKeyHex(payloadBytes, []byte(a.config.SecretKey.Value))
 }
 
+// sendBatch sends a gzip-compressed and signed metrics batch to the server
 func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	if metrics == nil {
 		return nil
@@ -261,6 +272,7 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	return nil
 }
 
+// runReporter schedules reporting jobs at the configured report interval
 func (a *Agent) runReporter(ctx context.Context, jobs chan<- job) {
 	ticker := time.NewTicker(a.reportInterval)
 	defer ticker.Stop()

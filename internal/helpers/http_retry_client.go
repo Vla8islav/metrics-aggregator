@@ -6,10 +6,13 @@ import (
 	"time"
 )
 
+// HTTPDoRequester describes the subset of http.Client used by HTTPRetryClient
 type HTTPDoRequester interface {
+	// Do sends an HTTP request and returns the response.
 	Do(req *http.Request) (*http.Response, error)
 }
 
+// HTTPRetryClient wraps an HTTP client with retry behavior for transient failures
 type HTTPRetryClient struct {
 	client HTTPDoRequester
 
@@ -20,7 +23,9 @@ type HTTPRetryClient struct {
 	shouldRetryOnStatus func(statusCode int) bool
 }
 
-func NewHTTPRetryClient(shouldRetryOnStatus func(int) bool, timeout time.Duration, maxAttempts int) *HTTPRetryClient {
+// NewHTTPRetryClient creates an HTTPRetryClient via predicate, timeout, and attempt limit
+func NewHTTPRetryClient(shouldRetryOnStatus func(int) bool,
+	timeout time.Duration, maxAttempts int) *HTTPRetryClient {
 	if shouldRetryOnStatus == nil {
 		shouldRetryOnStatus = DefaultShouldRetryStatus
 	}
@@ -29,6 +34,7 @@ func NewHTTPRetryClient(shouldRetryOnStatus func(int) bool, timeout time.Duratio
 		timeout:             timeout}
 }
 
+// DefaultShouldRetryStatus reports whether statusCode represents a retryable HTTP response
 func DefaultShouldRetryStatus(statusCode int) bool {
 	switch statusCode {
 	case http.StatusTooManyRequests,
@@ -41,6 +47,9 @@ func DefaultShouldRetryStatus(statusCode int) bool {
 	}
 }
 
+// Do sends req and retries while the response status is retryable or the request fails
+//
+// If req has a GetBody function, Do resets the request body before each attempt
 func (c *HTTPRetryClient) Do(req *http.Request) (*http.Response, error) {
 
 	var resp *http.Response

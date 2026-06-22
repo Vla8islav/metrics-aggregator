@@ -6,6 +6,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// DBPing handles database health checks
+//
+// accepts only GET requests, returns 200 when the storage layer is available
 func (h *Handler) DBPing(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {

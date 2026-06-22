@@ -1,24 +1,20 @@
 package handler
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 
-	"github.com/Vla8islav/metrics-aggregator/internal/config"
-	"github.com/Vla8islav/metrics-aggregator/internal/model"
-	"github.com/Vla8islav/metrics-aggregator/internal/repository"
+	"github.com/Vla8islav/metrics-aggregator/internal/mocks"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"go.uber.org/zap/zaptest"
 )
 
 func newReqWithVars(t *testing.T, target string, method string, vars map[string]string, contentType string) *http.Request {
 	t.Helper()
-	//
 	req := httptest.NewRequest(method, target, nil)
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
@@ -27,7 +23,6 @@ func newReqWithVars(t *testing.T, target string, method string, vars map[string]
 }
 
 func TestPostMetrics(t *testing.T) {
-	ctx := context.Background()
 	t.Parallel()
 	const defaultMetricName = "someMetricName"
 
@@ -36,6 +31,7 @@ func TestPostMetrics(t *testing.T) {
 		vars        map[string]string
 		contentType string
 		wantStatus  int
+		setupMock   func(service *mocks.MockMetricService)
 	}{
 		{
 			name: "gauge ok", vars: map[string]string{
@@ -45,6 +41,11 @@ func TestPostMetrics(t *testing.T) {
 			},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
+			setupMock: func(service *mocks.MockMetricService) {
+				service.EXPECT().
+					SetGauge(gomock.Any(), defaultMetricName, 1.124).
+					Return(nil)
+			},
 		},
 		{
 			name: "counter ok", vars: map[string]string{
@@ -54,6 +55,11 @@ func TestPostMetrics(t *testing.T) {
 			},
 			contentType: "text/plain",
 			wantStatus:  http.StatusOK,
+			setupMock: func(service *mocks.MockMetricService) {
+				service.EXPECT().
+					IncrementCounter(gomock.Any(), defaultMetricName, int64(1)).
+					Return(nil)
+			},
 		},
 		{
 			name: "invalid metric type",
@@ -110,39 +116,25 @@ func TestPostMetrics(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
 			req := newReqWithVars(t, "http://sample.ru/update/", http.MethodPost, tt.vars, tt.contentType)
 			rr := httptest.NewRecorder()
 
-			metricName := tt.vars["metricName"]
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-			cfg := config.ReadFlagsServer(nil)
-			db := repository.NewMemStorage(cfg)
-			zap := zaptest.NewLogger(t)
-			h := NewHandler(db, zap)
+			service := mocks.NewMockMetricService(ctrl)
+			if tt.setupMock != nil {
+				tt.setupMock(service)
+			}
+
+			logger := zaptest.NewLogger(t)
+			h := NewHandler(service, logger)
+
 			h.SetMetrics(rr, req)
 
 			assert.Equal(t, tt.wantStatus, rr.Code)
-
-			if tt.wantStatus == http.StatusOK {
-				expectedMetricValueStr := tt.vars["metricValue"]
-				switch tt.vars["metricType"] {
-				case string(models.Gauge):
-					metricValue, err := strconv.ParseFloat(expectedMetricValueStr, 64)
-					require.NoError(t, err)
-					val, err := h.service.GetGauge(ctx, metricName)
-					require.NoError(t, err)
-					assert.InDelta(t, metricValue, val, 1e-9)
-				case string(models.Counter):
-					metricValue, err := strconv.ParseInt(expectedMetricValueStr, 10, 64)
-					require.NoError(t, err)
-					val, err := h.service.GetCounter(ctx, metricName)
-					require.NoError(t, err)
-					assert.EqualValues(t, metricValue, val, 1e-9)
-				}
-			}
 		})
-
 	}
-
 }

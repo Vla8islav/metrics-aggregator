@@ -1,0 +1,8 @@
+[
+  {"id":"Alloc","type":"gauge","value":12344.6},
+  {"id":"HeapInuse","type":"gauge","value":18765.4},
+  {"id":"Sys","type":"gauge","value":24576200},
+  {"id":"NumGC","type":"gauge","value":8},
+  {"id":"PollCount","type":"counter","delta":2},
+  {"id":"RandomValue","type":"gauge","value":0.32}
+]

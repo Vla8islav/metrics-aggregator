@@ -1,0 +1,52 @@
+# direct writes
+POST http://localhost:45101/update/gauge/Alloc/12345.6
+POST http://localhost:45101/update/gauge/HeapInuse/98765.4
+POST http://localhost:45101/update/counter/PollCount/1
+POST http://localhost:45101/update/counter/RandomValue/42
+
+# gauge update
+POST http://localhost:45101/update/
+Content-Type: application/json
+Content-Encoding: gzip
+@bodies/update_gauge.json.gz
+
+POST http://localhost:45101/update/
+Content-Type: application/json
+Content-Encoding: gzip
+@bodies/update_counter.json.gz
+
+# Batches
+POST http://localhost:45101/updates/
+Content-Type: application/json
+Content-Encoding: gzip
+@bodies/batch.json.gz
+
+POST http://localhost:45101/updates/
+Content-Type: application/json
+Content-Encoding: gzip
+@bodies/batch.json.gz
+
+POST http://localhost:45101/updates/
+Content-Type: application/json
+Content-Encoding: gzip
+@bodies/batch.json.gz
+
+POST http://localhost:45101/updates/
+Content-Type: application/json
+Content-Encoding: gzip
+@bodies/batch2.json.gz
+
+# Reads
+GET http://localhost:45101/value/gauge/Alloc
+GET http://localhost:45101/value/counter/PollCount
+
+POST http://localhost:45101/value/
+Content-Type: application/json
+@bodies/value_gauge.json
+
+# Etc
+GET http://localhost:45101/ping
+
+GET http://localhost:45101/
+
+

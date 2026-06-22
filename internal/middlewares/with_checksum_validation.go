@@ -9,6 +9,10 @@ import (
 	"go.uber.org/zap"
 )
 
+// WithChecksum returns middleware that validates signed requests and signs responses.
+//
+// Requests with the checksum header are rejected when their signature doesn't match req body
+// Responses are buffered, signed, and then written to the client
 func WithChecksum(key string, logger *zap.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -27,6 +31,7 @@ func WithChecksum(key string, logger *zap.Logger) Middleware {
 	}
 }
 
+// handleInboundValidation validates the request checksum when the checksum header is present.
 func handleInboundValidation(w http.ResponseWriter, r *http.Request, key string, logger *zap.Logger) bool {
 	if r.Header.Get(helpers.ShaSimpleSignatureHeader) == "" {
 		logger.Debug("checksum validation header is empty")
@@ -56,11 +61,12 @@ func handleInboundValidation(w http.ResponseWriter, r *http.Request, key string,
 	return true
 }
 
+// handleOutgoingSigning captures the response body, signs it, and writes it to the client.
 func handleOutgoingSigning(w http.ResponseWriter, r *http.Request, key string, next http.Handler) error {
 
 	capturingWriter := newCapturingSignResponseWriter(w, key)
 
-	next.ServeHTTP(capturingWriter, r) // Сначала вызываем следующий обработчик, чтобы записать данные в буфер
+	next.ServeHTTP(capturingWriter, r)
 
 	err := capturingWriter.FlushToOriginal()
 	if err != nil {

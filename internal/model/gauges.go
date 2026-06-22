@@ -10,6 +10,7 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 )
 
+// Stats stores runtime, memory, CPU, gauge, and counter collected by the agent
 type Stats struct {
 	ms             runtime.MemStats
 	vmStat         *mem.VirtualMemoryStat
@@ -24,6 +25,7 @@ type Stats struct {
 	mu sync.RWMutex
 }
 
+// NewStats creates an initialized Stats value ready for metric collection
 func NewStats() *Stats {
 	s := Stats{
 		gauges:   make(map[string]float64),
@@ -33,6 +35,7 @@ func NewStats() *Stats {
 	return &s
 }
 
+// GetGauges returns a copy of the currently collected gauge metrics
 func (s *Stats) GetGauges() map[string]float64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -44,6 +47,7 @@ func (s *Stats) GetGauges() map[string]float64 {
 	return out
 }
 
+// GetCounters returns a copy of the currently collected counter
 func (s *Stats) GetCounters() map[string]int64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -55,6 +59,7 @@ func (s *Stats) GetCounters() map[string]int64 {
 	return out
 }
 
+// Update refreshes runtime, memory, CPU, gauge, and counter
 func (s *Stats) Update() error {
 	s.readMemStats()
 	err := s.readAdditionalMemStats()
@@ -108,24 +113,28 @@ func (s *Stats) Update() error {
 	return nil
 }
 
+// updateRandomValue stores a new random gauge value
 func (s *Stats) updateRandomValue() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.RandomValue = rand.Float64()
 }
 
+// incrementPollCount increments the number of completed metric polls
 func (s *Stats) incrementPollCount() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.PollCount++
 }
 
+// readMemStats reads Go runtime memory statistics
 func (s *Stats) readMemStats() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	runtime.ReadMemStats(&s.ms)
 }
 
+// readAdditionalMemStats reads host memory and CPU utilization statistics
 func (s *Stats) readAdditionalMemStats() error {
 	vm, err := mem.VirtualMemory()
 	if err != nil {

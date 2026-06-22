@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Vla8islav/metrics-aggregator/internal/model"
+	"github.com/Vla8islav/metrics-aggregator/internal/audit"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 	"github.com/gorilla/mux"
 )
 
+// SetMetrics sets the metric by value /update/{metricType}/{metricName}/{metricValue}
 func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
@@ -20,7 +22,10 @@ func (h *Handler) SetMetrics(w http.ResponseWriter, r *http.Request) {
 
 	metricTypeStr := requestComponents["metricType"]
 	metricType := models.MetricType(metricTypeStr)
+
 	metricName := requestComponents["metricName"]
+	audit.AddMetric(r.Context(), metricName)
+
 	metricValue := requestComponents["metricValue"]
 
 	if _, found := models.ValidMetricTypes[metricType]; !found {

@@ -33,3 +33,6 @@ db-down: db-start
 
 db-status: db-start
 	goose -dir $(GOOSE_MIGRATION_DIR) postgres "$(DSN)" status
+
+generate:
+	go generate ./internal/mocks

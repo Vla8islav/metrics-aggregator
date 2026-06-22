@@ -7,15 +7,23 @@ import (
 	"os"
 	"time"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/audit"
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/domain"
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
 	"github.com/Vla8islav/metrics-aggregator/internal/middlewares"
 	"github.com/Vla8islav/metrics-aggregator/internal/service"
 	"go.uber.org/zap"
+
+	_ "net/http/pprof"
 )
 
 func main() {
+
+	//< for testing only, delete in prod
+	//runtime.SetBlockProfileRate(1)
+	//runtime.SetMutexProfileFraction(1)
+
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("failed to initialize logger: %v", err)
@@ -38,9 +46,25 @@ func main() {
 	h := handler.NewHandler(srvApp, logger)
 	r := handler.NewRouter(h)
 
+	var sinks []audit.Sink
+	if currentConfig.AuditFile.BeenSet {
+		fileSink := audit.NewFileSink(currentConfig.AuditFile.Value)
+		defer fileSink.Close()
+		sinks = append(sinks, fileSink)
+	}
+	if currentConfig.AuditURL.BeenSet {
+		webSink, err := audit.NewWebSink(currentConfig.AuditURL.Value)
+		if err != nil {
+			logger.Fatal("failed to initialize web sink", zap.Error(err))
+		}
+		sinks = append(sinks, webSink)
+	}
+	publisher := audit.NewPublisher(sinks...)
+
 	handlerWithMW := middlewares.ChainMiddlewares(
 		r,
 		middlewares.WithLogging(logger),
+		middlewares.WithAudit(publisher),
 	)
 
 	if currentConfig.SecretKey.BeenSet {
@@ -49,6 +73,7 @@ func main() {
 			middlewares.WithChecksum(currentConfig.SecretKey.Value, logger),
 		)
 	}
+
 	// compression should come last
 	handlerWithMW = middlewares.ChainMiddlewares(
 		handlerWithMW,
@@ -61,7 +86,9 @@ func main() {
 		WriteTimeout: 5 * time.Second,
 	}
 
+	go func() { log.Println(http.ListenAndServe("localhost:6060", nil)) }()
 	err = srvImpl.ListenAndServe()
+
 	if err != nil {
 		logger.Fatal(err.Error())
 		return
