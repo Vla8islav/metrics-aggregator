@@ -8,7 +8,8 @@ import (
 )
 
 type StructInfo struct {
-	Name string
+	Name   string
+	Fields []resetField
 }
 
 // findResetStructs ищет все структуры с комментарием // generate:reset
@@ -42,17 +43,17 @@ func findResetStructs(filePath string) ([]StructInfo, string, error) {
 			if !ok {
 				continue
 			}
-			_, ok = typeSpec.Type.(*ast.StructType)
+			structType, ok := typeSpec.Type.(*ast.StructType)
 			if !ok {
 				continue
 			}
 			structs = append(structs, StructInfo{
-				Name: typeSpec.Name.Name,
+				Name:   typeSpec.Name.Name,
+				Fields: readResetFields(structType),
 			})
 		}
 	}
 	return structs, file.Name.Name, nil
-
 }
 
 func hasGenerateResetComment(commentGroup *ast.CommentGroup) bool {
@@ -75,5 +76,4 @@ func hasGenerateResetComment(commentGroup *ast.CommentGroup) bool {
 		}
 	}
 	return false
-
 }
