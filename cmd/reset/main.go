@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"go/ast"
-	"io/fs"
+	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 )
 
 func main() {
@@ -13,99 +14,58 @@ func main() {
 		panic(err)
 	}
 
+	packageToResetFileContents := make(map[string]string)
+	packageToImports := make(map[string]map[string]struct{})
+
 	for _, file := range files {
+		packageDir := filepath.Dir(file)
 		structs, packageName, err := findResetStructs(file)
 		if err != nil {
 			panic(err)
 		}
-
 		for _, s := range structs {
 			fmt.Println("file:", file)
 			fmt.Println("package:", packageName)
 			fmt.Println("struct:", s.Name)
 			fmt.Print(generateResetMethod(s.Name, s.Fields))
-		}
-	}
-}
-
-func findGoFiles(root string) ([]string, error) {
-	var files []string
-
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() {
-			switch d.Name() {
-			case ".git", ".idea", "vendor":
-				return filepath.SkipDir
+			if _, found := packageToResetFileContents[packageDir]; !found {
+				packageToResetFileContents[packageDir] += "package " + packageName + "\n"
+			}
+			if _, found := packageToImports[packageDir]; !found {
+				packageToImports[packageDir] = make(map[string]struct{})
+			}
+			for _, field := range s.Fields {
+				if field.ImportPath != "" {
+					packageToImports[packageDir][field.ImportPath] = struct{}{}
+				}
 			}
 
-			return nil
-		}
-
-		if filepath.Ext(path) != ".go" {
-			return nil
-		}
-
-		files = append(files, path)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return files, nil
-}
-
-func readResetFields(st *ast.StructType) []resetField {
-	var fields []resetField
-
-	for _, field := range st.Fields.List {
-		for _, name := range field.Names {
-			fields = append(fields, resetField{
-				Name:      name.Name,
-				ZeroValue: zeroValueFor(field.Type),
-				Kind:      resetKindFor(field.Type),
-			})
+			packageToResetFileContents[packageDir] += "\n"
+			packageToResetFileContents[packageDir] += generateResetMethod(s.Name, s.Fields)
 		}
 	}
 
-	return fields
-}
-
-func resetKindFor(expr ast.Expr) resetFieldKind {
-	switch expr := expr.(type) {
-	case *ast.StarExpr:
-		if _, ok := expr.X.(*ast.Ident); ok {
-			return resetFieldResetter
+	for packageDir, content := range packageToResetFileContents {
+		imports := packageToImports[packageDir]
+		if len(imports) > 0 {
+			var importPaths []string
+			for importPath := range imports {
+				importPaths = append(importPaths, importPath)
+			}
+			sort.Strings(importPaths)
+			var importBlock strings.Builder
+			importBlock.WriteString("import (\n")
+			for _, importPath := range importPaths {
+				importBlock.WriteString("\t\"")
+				importBlock.WriteString(importPath)
+				importBlock.WriteString("\"\n")
+			}
+			importBlock.WriteString(")\n\n")
+			content = strings.Replace(content, "\n", "\n\n"+importBlock.String(), 1)
 		}
-
-		return resetFieldPointer
-	case *ast.ArrayType:
-		return resetFieldSlice
-	case *ast.MapType:
-		return resetFieldMap
-	default:
-		return resetFieldScalar
-	}
-}
-
-func zeroValueFor(expr ast.Expr) string {
-	switch expr := expr.(type) {
-	case *ast.Ident:
-		switch expr.Name {
-		case "string":
-			return `""`
-		case "bool":
-			return "false"
-		default:
-			return "0"
+		outputPath := filepath.Join(packageDir, "reset.gen.go")
+		if err := os.WriteFile(outputPath, []byte(content), 0o644); err != nil {
+			panic(err)
 		}
-	case *ast.StarExpr:
-		return zeroValueFor(expr.X)
-	default:
-		return "nil"
 	}
 }

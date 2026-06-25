@@ -25,6 +25,9 @@ func findResetStructs(filePath string) ([]StructInfo, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+
+	imports := readImportPaths(file)
+
 	var structs []StructInfo
 	for _, decl := range file.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
@@ -49,7 +52,7 @@ func findResetStructs(filePath string) ([]StructInfo, string, error) {
 			}
 			structs = append(structs, StructInfo{
 				Name:   typeSpec.Name.Name,
-				Fields: readResetFields(structType),
+				Fields: readResetFields(structType, imports),
 			})
 		}
 	}

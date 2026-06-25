@@ -6,6 +6,7 @@ import (
 )
 
 // Event describes an audited metrics operation
+// generate:reset
 type Event struct {
 	Time       UnixTime `json:"ts"`
 	Metrics    []string `json:"metrics"`
