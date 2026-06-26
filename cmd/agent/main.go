@@ -11,6 +11,8 @@ import (
 )
 
 func main() {
+	printBuildInfo()
+
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("failed to initialize logger: %v", err)

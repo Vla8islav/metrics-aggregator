@@ -19,6 +19,7 @@ func (p *Pool[T]) Get() T {
 
 	last := len(p.items) - 1
 	item := p.items[last]
+	// cutting the pool
 	p.items = p.items[:last]
 
 	return item

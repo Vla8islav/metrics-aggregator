@@ -3,12 +3,18 @@
 # allow override
 DSN ?= postgres://default_user:default_password@localhost:5432/metrics_db?sslmode=disable
 GOOSE_MIGRATION_DIR=migrations
+VERSION ?= v1.0.0
+BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+BUILD_COMMIT := $(shell git rev-parse --short HEAD)
 
 test:
 	go test -race ./...
 
 build:
-	go build -o bin/server ./cmd/server
+	go build -ldflags "-X 'main.buildVersion=v1.0.0' \
+                 -X 'main.buildDate=${BUILD_DATE}' \
+                 -X 'main.buildCommit=${BUILD_COMMIT}'" \
+                   -o bin/server ./cmd/server
 
 run: build
 	./bin/server

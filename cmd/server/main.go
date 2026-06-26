@@ -19,6 +19,7 @@ import (
 )
 
 func main() {
+	printBuildInfo()
 
 	//< for testing only, delete in prod
 	//runtime.SetBlockProfileRate(1)
