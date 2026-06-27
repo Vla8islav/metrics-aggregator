@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"go/ast"
 	"go/printer"
 	"go/token"
@@ -11,53 +10,6 @@ import (
 	"strconv"
 	"strings"
 )
-
-type resetFieldKind int
-
-const (
-	resetFieldScalar resetFieldKind = iota
-	resetFieldPointer
-	resetFieldSlice
-	resetFieldMap
-	resetFieldResetter
-)
-
-type resetField struct {
-	Name       string
-	ZeroValue  string
-	Kind       resetFieldKind
-	ImportPath string
-}
-
-func (f resetField) ResetLine(receiver string) string {
-	switch f.Kind {
-	case resetFieldPointer:
-		return fmt.Sprintf("\tif %s.%s != nil {\n\t\t%s.%s = %s\n\t}\n", receiver, f.Name, receiver, f.Name, f.ZeroValue)
-	case resetFieldSlice:
-		return fmt.Sprintf("\t%s.%s = %s.%s[:0]\n", receiver, f.Name, receiver, f.Name)
-	case resetFieldMap:
-		return fmt.Sprintf("\tclear(%s.%s)\n", receiver, f.Name)
-	case resetFieldResetter:
-		return fmt.Sprintf("\tif resetter, ok := any(%s.%s).(interface{ Reset() }); ok && %s.%s != nil {\n\t\tresetter.Reset()\n\t}\n", receiver, f.Name, receiver, f.Name)
-	default:
-		return fmt.Sprintf("\t%s.%s = %s\n", receiver, f.Name, f.ZeroValue)
-	}
-}
-
-func generateResetMethod(structName string, fields []resetField) string {
-	result := fmt.Sprintf("func (v *%s) Reset() {\n", structName)
-	result += "\tif v == nil {\n"
-	result += "\t\treturn\n"
-	result += "\t}\n\n"
-
-	for _, field := range fields {
-		result += field.ResetLine("v")
-	}
-
-	result += "}\n\n"
-
-	return result
-}
 
 func findGoFiles(root string) ([]string, error) {
 	var files []string
@@ -207,27 +159,41 @@ func resetKindFor(expr ast.Expr) resetFieldKind {
 func zeroValueFor(expr ast.Expr) string {
 	switch expr := expr.(type) {
 	case *ast.Ident:
-		switch expr.Name {
-		case "string":
-			return `""`
-		case "bool":
-			return "false"
-		case "int", "int8", "int16", "int32", "int64",
-			"uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
-			"float32", "float64", "complex64", "complex128",
-			"byte", "rune":
-			return "0"
-		default:
-			return "*new(" + expr.Name + ")"
-		}
-
-	case *ast.StarExpr:
-		return "nil"
+		return zeroValueForIdent(expr.Name)
 
 	case *ast.SelectorExpr:
-		return "*new(" + exprString(expr) + ")"
+		return zeroValueForNamedType(expr)
+
+	case *ast.StarExpr, *ast.ArrayType, *ast.MapType, *ast.ChanType, *ast.FuncType, *ast.InterfaceType:
+		return "nil"
 
 	default:
 		return "nil"
 	}
+}
+
+func zeroValueForIdent(name string) string {
+	switch name {
+	case "string":
+		return `""`
+	case "bool":
+		return "false"
+	case "int", "int8", "int16", "int32", "int64",
+		"uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
+		"float32", "float64", "complex64", "complex128",
+		"byte", "rune":
+		return "0"
+	case "error", "any":
+		return "nil"
+	default:
+		return zeroValueForNamedType(exprFromName(name))
+	}
+}
+
+func zeroValueForNamedType(expr ast.Expr) string {
+	return "*new(" + exprString(expr) + ")"
+}
+
+func exprFromName(name string) ast.Expr {
+	return ast.NewIdent(name)
 }

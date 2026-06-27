@@ -1,82 +1,55 @@
 package main
 
-import (
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"strings"
+import "fmt"
+
+func generateResetMethod(structName string, fields []resetField) string {
+	result := fmt.Sprintf("func (v *%s) Reset() {\n", structName)
+	result += "\tif v == nil {\n"
+	result += "\t\treturn\n"
+	result += "\t}\n\n"
+
+	for _, field := range fields {
+		result += field.ResetLine("v")
+	}
+
+	result += "}\n\n"
+
+	return result
+}
+
+type resetFieldKind int
+
+const (
+	resetFieldScalar resetFieldKind = iota
+	resetFieldPointer
+	resetFieldSlice
+	resetFieldMap
+	resetFieldResetter
 )
 
-type StructInfo struct {
-	Name   string
-	Fields []resetField
+type resetField struct {
+	Name       string
+	ZeroValue  string
+	Kind       resetFieldKind
+	ImportPath string
 }
 
-// findResetStructs ищет все структуры с комментарием // generate:reset
-// перед объявлением типа.
-func findResetStructs(filePath string) ([]StructInfo, string, error) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(
-		fset,
-		filePath,
-		nil,
-		parser.ParseComments,
-	)
-	if err != nil {
-		return nil, "", err
+func (f resetField) ResetLine(receiver string) string {
+	switch f.Kind {
+	case resetFieldPointer:
+		return fmt.Sprintf("\tif %s.%s != nil {\n\t\t%s.%s = %s\n\t}\n",
+			receiver, f.Name, receiver, f.Name, f.ZeroValue)
+	case resetFieldSlice:
+		return fmt.Sprintf("\t%s.%s = %s.%s[:0]\n",
+			receiver, f.Name, receiver, f.Name)
+	case resetFieldMap:
+		return fmt.Sprintf("\tclear(%s.%s)\n",
+			receiver, f.Name)
+	case resetFieldResetter:
+		return fmt.Sprintf("\tif resetter, ok := any(%s.%s).(interface{ Reset() }); ok &&"+
+			" %s.%s != nil {\n\t\tresetter.Reset()\n\t}\n",
+			receiver, f.Name, receiver, f.Name)
+	default:
+		return fmt.Sprintf("\t%s.%s = %s\n", receiver, f.Name, f.ZeroValue)
 	}
-
-	imports := readImportPaths(file)
-
-	var structs []StructInfo
-	for _, decl := range file.Decls {
-		genDecl, ok := decl.(*ast.GenDecl)
-		if !ok {
-			continue
-		}
-		// type StructName struct {}
-		if genDecl.Tok != token.TYPE {
-			continue
-		}
-		if !hasGenerateResetComment(genDecl.Doc) {
-			continue
-		}
-		for _, spec := range genDecl.Specs {
-			typeSpec, ok := spec.(*ast.TypeSpec)
-			if !ok {
-				continue
-			}
-			structType, ok := typeSpec.Type.(*ast.StructType)
-			if !ok {
-				continue
-			}
-			structs = append(structs, StructInfo{
-				Name:   typeSpec.Name.Name,
-				Fields: readResetFields(structType, imports),
-			})
-		}
-	}
-	return structs, file.Name.Name, nil
-}
-
-func hasGenerateResetComment(commentGroup *ast.CommentGroup) bool {
-	if commentGroup == nil {
-		return false
-	}
-	for _, comment := range commentGroup.List {
-		text := strings.TrimSpace(comment.Text)
-		if text == "// generate:reset" {
-			return true
-		}
-		// На случай блочного комментария:
-		//
-		// /* generate:reset */
-		text = strings.TrimPrefix(text, "/*")
-		text = strings.TrimSuffix(text, "*/")
-		text = strings.TrimSpace(text)
-		if text == "generate:reset" {
-			return true
-		}
-	}
-	return false
 }
