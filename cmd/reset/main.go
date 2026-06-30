@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"go/format"
 	"os"
 	"path/filepath"
 	"sort"
@@ -65,8 +66,14 @@ func main() {
 			content.WriteString(importBlock.String())
 		}
 		content.WriteString(generateResetMethods(structs))
+
+		formattedContent, err := format.Source([]byte(content.String()))
+		if err != nil {
+			panic(err)
+		}
+
 		outputPath := filepath.Join(packageDir, "reset.gen.go")
-		if err := os.WriteFile(outputPath, []byte(content.String()), 0o644); err != nil {
+		if err := os.WriteFile(outputPath, formattedContent, 0o644); err != nil {
 			panic(err)
 		}
 	}

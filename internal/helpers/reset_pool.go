@@ -7,7 +7,7 @@ type Pool[T ResetCapable] struct {
 	items []T
 }
 
-func New[T ResetCapable]() *Pool[T] {
+func NewPool[T ResetCapable]() *Pool[T] {
 	return &Pool[T]{}
 }
 
