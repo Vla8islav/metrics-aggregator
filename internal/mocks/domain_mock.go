@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	model "github.com/Vla8islav/metrics-aggregator/internal/model"
+	models "github.com/Vla8islav/metrics-aggregator/internal/model"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,10 +42,10 @@ func (m *MockMetricRepository) EXPECT() *MockMetricRepositoryMockRecorder {
 }
 
 // GetAll mocks base method.
-func (m *MockMetricRepository) GetAll(ctx context.Context) (model.MetricsExport, error) {
+func (m *MockMetricRepository) GetAll(ctx context.Context) (models.MetricsExport, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", ctx)
-	ret0, _ := ret[0].(model.MetricsExport)
+	ret0, _ := ret[0].(models.MetricsExport)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -143,7 +143,7 @@ func (mr *MockMetricRepositoryMockRecorder) SetGauge(ctx, name, gauge any) *gomo
 }
 
 // UpdateMetrics mocks base method.
-func (m *MockMetricRepository) UpdateMetrics(ctx context.Context, input []model.Metrics) error {
+func (m *MockMetricRepository) UpdateMetrics(ctx context.Context, input []models.Metrics) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateMetrics", ctx, input)
 	ret0, _ := ret[0].(error)
@@ -181,10 +181,10 @@ func (m *MockMetricService) EXPECT() *MockMetricServiceMockRecorder {
 }
 
 // GetAll mocks base method.
-func (m *MockMetricService) GetAll(ctx context.Context) (model.MetricsExport, error) {
+func (m *MockMetricService) GetAll(ctx context.Context) (models.MetricsExport, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", ctx)
-	ret0, _ := ret[0].(model.MetricsExport)
+	ret0, _ := ret[0].(models.MetricsExport)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -268,7 +268,7 @@ func (mr *MockMetricServiceMockRecorder) SetGauge(ctx, name, gauge any) *gomock.
 }
 
 // UpdateMetrics mocks base method.
-func (m *MockMetricService) UpdateMetrics(ctx context.Context, input []model.Metrics) error {
+func (m *MockMetricService) UpdateMetrics(ctx context.Context, input []models.Metrics) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateMetrics", ctx, input)
 	ret0, _ := ret[0].(error)

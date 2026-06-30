@@ -1,8 +1,10 @@
 package audit
 
 import (
+	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"time"
 )
+
 
 func (v *Event) Reset() {
 	if v == nil {
@@ -15,6 +17,7 @@ func (v *Event) Reset() {
 	v.Operation = ""
 }
 
+
 func (v *UnixTime) Reset() {
 	if v == nil {
 		return
@@ -23,13 +26,13 @@ func (v *UnixTime) Reset() {
 	v.Time = *new(time.Time)
 }
 
+
 func (v *WebSink) Reset() {
 	if v == nil {
 		return
 	}
 
-	if v.client != nil {
-		v.client = nil
-	}
+	v.client = new(helpers.HTTPRetryClient)
 	v.auditURL = ""
 }
+

@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func generateResetMethod(structName string, fields []resetField) string {
 	result := fmt.Sprintf("func (v *%s) Reset() {\n", structName)
@@ -37,8 +40,7 @@ type resetField struct {
 func (f resetField) ResetLine(receiver string) string {
 	switch f.Kind {
 	case resetFieldPointer:
-		return fmt.Sprintf("\tif %s.%s != nil {\n\t\t%s.%s = %s\n\t}\n",
-			receiver, f.Name, receiver, f.Name, f.ZeroValue)
+		return fmt.Sprintf("\t%s.%s = %s\n", receiver, f.Name, strings.Replace(f.ZeroValue, "*", "", 1))
 	case resetFieldSlice:
 		return fmt.Sprintf("\t%s.%s = %s.%s[:0]\n",
 			receiver, f.Name, receiver, f.Name)

@@ -19,9 +19,7 @@ func TestGenerateResetMethod(t *testing.T) {
 		"\t}\n\n" +
 		"\tv.Name = \"\"\n" +
 		"\tv.Age = 0\n" +
-		"\tif v.Logger != nil {\n" +
-		"\t\tv.Logger = nil\n" +
-		"\t}\n" +
+		"\tv.Logger = new(Logger)\n" +
 		"\tv.Tags = v.Tags[:0]\n" +
 		"\tclear(v.Attrs)\n" +
 		"\tif resetter, ok := any(v.State).(interface{ Reset() }); ok && v.State != nil {\n" +
@@ -64,9 +62,7 @@ func TestResetFieldResetLine(t *testing.T) {
 			name:     "pointer",
 			field:    resetField{Name: "Logger", ZeroValue: "nil", Kind: resetFieldPointer},
 			receiver: "v",
-			want: "\tif v.Logger != nil {\n" +
-				"\t\tv.Logger = nil\n" +
-				"\t}\n",
+			want:     "\tv.Logger = new(Logger)\n",
 		},
 		{
 			name:     "slice",

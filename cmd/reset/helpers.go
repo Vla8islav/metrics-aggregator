@@ -164,7 +164,10 @@ func zeroValueFor(expr ast.Expr) string {
 	case *ast.SelectorExpr:
 		return zeroValueForNamedType(expr)
 
-	case *ast.StarExpr, *ast.ArrayType, *ast.MapType, *ast.ChanType, *ast.FuncType, *ast.InterfaceType:
+	case *ast.StarExpr:
+		return zeroValueForPointer(expr)
+
+	case *ast.ArrayType, *ast.MapType, *ast.ChanType, *ast.FuncType, *ast.InterfaceType:
 		return "nil"
 
 	default:
@@ -188,6 +191,10 @@ func zeroValueForIdent(name string) string {
 	default:
 		return zeroValueForNamedType(exprFromName(name))
 	}
+}
+
+func zeroValueForPointer(expr ast.Expr) string {
+	return "new(" + exprString(expr) + ")"
 }
 
 func zeroValueForNamedType(expr ast.Expr) string {
