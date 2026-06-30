@@ -96,20 +96,22 @@ func readResetFields(st *ast.StructType, imports map[string]string) []resetField
 	for _, field := range st.Fields.List {
 		if len(field.Names) == 0 {
 			fields = append(fields, resetField{
-				Name:       embeddedFieldName(field.Type),
-				ZeroValue:  zeroValueFor(field.Type),
-				Kind:       resetKindFor(field.Type),
-				ImportPath: importPathFor(field.Type, imports),
+				Name:          embeddedFieldName(field.Type),
+				ZeroValue:     zeroValueFor(field.Type),
+				ElemZeroValue: elemZeroValueFor(field.Type),
+				Kind:          resetKindFor(field.Type),
+				ImportPath:    importPathFor(field.Type, imports),
 			})
 			continue
 		}
 
 		for _, name := range field.Names {
 			fields = append(fields, resetField{
-				Name:       name.Name,
-				ZeroValue:  zeroValueFor(field.Type),
-				Kind:       resetKindFor(field.Type),
-				ImportPath: importPathFor(field.Type, imports),
+				Name:          name.Name,
+				ZeroValue:     zeroValueFor(field.Type),
+				ElemZeroValue: elemZeroValueFor(field.Type),
+				Kind:          resetKindFor(field.Type),
+				ImportPath:    importPathFor(field.Type, imports),
 			})
 		}
 	}
@@ -142,13 +144,13 @@ func exprString(expr ast.Expr) string {
 func resetKindFor(expr ast.Expr) resetFieldKind {
 	switch expr := expr.(type) {
 	case *ast.StarExpr:
-		if _, ok := expr.X.(*ast.Ident); ok {
-			return resetFieldResetter
-		}
-
 		return resetFieldPointer
 	case *ast.ArrayType:
-		return resetFieldSlice
+		if expr.Len == nil {
+			return resetFieldSlice
+		}
+
+		return resetFieldScalar
 	case *ast.MapType:
 		return resetFieldMap
 	default:
@@ -164,11 +166,15 @@ func zeroValueFor(expr ast.Expr) string {
 	case *ast.SelectorExpr:
 		return zeroValueForNamedType(expr)
 
-	case *ast.StarExpr:
-		return zeroValueForPointer(expr)
-
-	case *ast.ArrayType, *ast.MapType, *ast.ChanType, *ast.FuncType, *ast.InterfaceType:
+	case *ast.StarExpr, *ast.MapType, *ast.ChanType, *ast.FuncType, *ast.InterfaceType:
 		return "nil"
+
+	case *ast.ArrayType:
+		if expr.Len == nil {
+			return "nil"
+		}
+
+		return zeroValueForNamedType(expr)
 
 	default:
 		return "nil"
@@ -193,8 +199,12 @@ func zeroValueForIdent(name string) string {
 	}
 }
 
-func zeroValueForPointer(expr ast.Expr) string {
-	return "new(" + exprString(expr) + ")"
+func elemZeroValueFor(expr ast.Expr) string {
+	starExpr, ok := expr.(*ast.StarExpr)
+	if !ok {
+		return ""
+	}
+	return zeroValueFor(starExpr.X)
 }
 
 func zeroValueForNamedType(expr ast.Expr) string {

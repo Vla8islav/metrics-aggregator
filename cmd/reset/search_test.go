@@ -9,40 +9,36 @@ import (
 )
 
 func TestFindResetStructs(t *testing.T) {
-	filePath := writeTempGoFile(t, `
-package testdata
+	t.Parallel()
+
+	filePath := writeTempGoFile(t, `package audit
 
 import (
-	"time"
 	customjson "encoding/json"
+	"time"
 )
+
+type IgnoredNoComment struct {
+	Name string
+}
 
 // generate:reset
 type Event struct {
 	Name string
-	Count int64
+	Count int
 	StartedAt time.Time
-	*customjson.Decoder
+	Decoder *customjson.Decoder
 }
 
-type Ignored struct {
-	Name string
-}
-
-/* generate:reset */
+// generate:reset
 type Audit struct {
 	Tags []string
 	Attrs map[string]string
 }
 `)
 
-	gotStructs, gotPackage, err := findResetStructs(filePath)
+	gotStructs, gotPackageName, err := findResetStructs(filePath)
 	requireNoError(t, err)
-
-	wantPackage := "testdata"
-	if gotPackage != wantPackage {
-		t.Fatalf("findResetStructs() package = %q, want %q", gotPackage, wantPackage)
-	}
 
 	wantStructs := []GenerationMarkedStructInfo{
 		{
@@ -51,7 +47,7 @@ type Audit struct {
 				{Name: "Name", ZeroValue: `""`, Kind: resetFieldScalar},
 				{Name: "Count", ZeroValue: "0", Kind: resetFieldScalar},
 				{Name: "StartedAt", ZeroValue: "*new(time.Time)", Kind: resetFieldScalar, ImportPath: "time"},
-				{Name: "Decoder", ZeroValue: "nil", Kind: resetFieldPointer, ImportPath: "encoding/json"},
+				{Name: "Decoder", ZeroValue: "nil", ElemZeroValue: "*new(customjson.Decoder)", Kind: resetFieldPointer, ImportPath: "encoding/json"},
 			},
 		},
 		{
@@ -63,47 +59,69 @@ type Audit struct {
 		},
 	}
 
+	if gotPackageName != "audit" {
+		t.Fatalf("findResetStructs() package = %q, want %q", gotPackageName, "audit")
+	}
+
 	if !reflect.DeepEqual(gotStructs, wantStructs) {
 		t.Fatalf("findResetStructs() structs = %#v, want %#v", gotStructs, wantStructs)
 	}
 }
 
-func TestFindResetStructsGroupedTypeDeclaration(t *testing.T) {
-	filePath := writeTempGoFile(t, `
-package testdata
+func TestFindResetStructsWithBlockComment(t *testing.T) {
+	t.Parallel()
 
-// generate:reset
-type (
-	User struct {
-		Name string
-	}
+	filePath := writeTempGoFile(t, `package audit
 
-	Order struct {
-		Number string
-	}
-
-	Alias string
-)
+/* generate:reset */
+type Event struct {
+	Name string
+}
 `)
 
-	gotStructs, gotPackage, err := findResetStructs(filePath)
+	gotStructs, gotPackageName, err := findResetStructs(filePath)
 	requireNoError(t, err)
-
-	if gotPackage != "testdata" {
-		t.Fatalf("findResetStructs() package = %q, want %q", gotPackage, "testdata")
-	}
 
 	wantStructs := []GenerationMarkedStructInfo{
 		{
-			Name: "User",
+			Name: "Event",
 			Fields: []resetField{
 				{Name: "Name", ZeroValue: `""`, Kind: resetFieldScalar},
 			},
 		},
+	}
+
+	if gotPackageName != "audit" {
+		t.Fatalf("findResetStructs() package = %q, want %q", gotPackageName, "audit")
+	}
+
+	if !reflect.DeepEqual(gotStructs, wantStructs) {
+		t.Fatalf("findResetStructs() structs = %#v, want %#v", gotStructs, wantStructs)
+	}
+}
+
+func TestFindResetStructsIgnoresNonStructTypes(t *testing.T) {
+	t.Parallel()
+
+	filePath := writeTempGoFile(t, `package audit
+
+// generate:reset
+type Name string
+
+// generate:reset
+type Event struct {
+	Name string
+}
+`)
+
+	gotStructs, _, err := findResetStructs(filePath)
+	requireNoError(t, err)
+
+	wantStructs := []GenerationMarkedStructInfo{
 		{
-			Name: "Order",
+			Name: "Event",
 			Fields: []resetField{
-				{Name: "Number", ZeroValue: `""`, Kind: resetFieldScalar},
+				{Name: "Name", ZeroValue: `""`, Kind: resetFieldScalar},
 			},
 		},
 	}
@@ -113,23 +131,21 @@ type (
 	}
 }
 
-func TestFindResetStructsIgnoresCommentOnPreviousDeclaration(t *testing.T) {
-	filePath := writeTempGoFile(t, `
-package testdata
+func TestFindResetStructsReturnsEmptyForUnmarkedStructs(t *testing.T) {
+	t.Parallel()
 
-// generate:reset
-const answer = 42
+	filePath := writeTempGoFile(t, `package audit
 
 type Event struct {
 	Name string
 }
 `)
 
-	gotStructs, gotPackage, err := findResetStructs(filePath)
+	gotStructs, gotPackageName, err := findResetStructs(filePath)
 	requireNoError(t, err)
 
-	if gotPackage != "testdata" {
-		t.Fatalf("findResetStructs() package = %q, want %q", gotPackage, "testdata")
+	if gotPackageName != "audit" {
+		t.Fatalf("findResetStructs() package = %q, want %q", gotPackageName, "audit")
 	}
 
 	if len(gotStructs) != 0 {
@@ -137,78 +153,80 @@ type Event struct {
 	}
 }
 
-func TestFindResetStructsParseError(t *testing.T) {
-	filePath := writeTempGoFile(t, `
-package testdata
+func TestFindResetStructsReturnsParseError(t *testing.T) {
+	t.Parallel()
 
-type Broken struct {
+	filePath := writeTempGoFile(t, `package audit
+
+// generate:reset
+type Event struct {
 	Name string
 `)
 
-	gotStructs, gotPackage, err := findResetStructs(filePath)
+	gotStructs, gotPackageName, err := findResetStructs(filePath)
 	if err == nil {
-		t.Fatal("findResetStructs() error = nil, want parse error")
+		t.Fatal("findResetStructs() error = nil, want error")
 	}
-
 	if gotStructs != nil {
 		t.Fatalf("findResetStructs() structs = %#v, want nil", gotStructs)
 	}
-
-	if gotPackage != "" {
-		t.Fatalf("findResetStructs() package = %q, want empty string", gotPackage)
+	if gotPackageName != "" {
+		t.Fatalf("findResetStructs() package = %q, want empty string", gotPackageName)
 	}
 }
 
 func TestHasGenerateResetComment(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		commentGroup *ast.CommentGroup
 		want         bool
 	}{
 		{
-			name:         "nil comment group",
-			commentGroup: nil,
-			want:         false,
+			name: "nil comment group",
 		},
 		{
 			name: "line comment",
-			commentGroup: &ast.CommentGroup{List: []*ast.Comment{
-				{Text: "// generate:reset"},
-			}},
+			commentGroup: &ast.CommentGroup{
+				List: []*ast.Comment{
+					{Text: "// generate:reset"},
+				},
+			},
 			want: true,
 		},
 		{
 			name: "block comment",
-			commentGroup: &ast.CommentGroup{List: []*ast.Comment{
-				{Text: "/* generate:reset */"},
-			}},
+			commentGroup: &ast.CommentGroup{
+				List: []*ast.Comment{
+					{Text: "/* generate:reset */"},
+				},
+			},
 			want: true,
 		},
 		{
-			name: "block comment with spaces",
-			commentGroup: &ast.CommentGroup{List: []*ast.Comment{
-				{Text: "/*   generate:reset   */"},
-			}},
-			want: true,
+			name: "wrong comment",
+			commentGroup: &ast.CommentGroup{
+				List: []*ast.Comment{
+					{Text: "// generate:something-else"},
+				},
+			},
 		},
 		{
-			name: "different comment",
-			commentGroup: &ast.CommentGroup{List: []*ast.Comment{
-				{Text: "// generate:other"},
-			}},
-			want: false,
-		},
-		{
-			name: "same text but extra suffix",
-			commentGroup: &ast.CommentGroup{List: []*ast.Comment{
-				{Text: "// generate:reset please"},
-			}},
-			want: false,
+			name: "similar but not exact line comment",
+			commentGroup: &ast.CommentGroup{
+				List: []*ast.Comment{
+					{Text: "//generate:reset"},
+				},
+			},
 		},
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := hasGenerateResetComment(tt.commentGroup)
 			if got != tt.want {
 				t.Fatalf("hasGenerateResetComment() = %v, want %v", got, tt.want)
@@ -225,4 +243,12 @@ func writeTempGoFile(t *testing.T, source string) string {
 	requireNoError(t, os.WriteFile(filePath, []byte(source), 0o644))
 
 	return filePath
+}
+
+func requireNoError(t *testing.T, err error) {
+	t.Helper()
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }

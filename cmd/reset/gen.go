@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 )
 
 func generateResetMethod(structName string, fields []resetField) string {
@@ -20,6 +19,49 @@ func generateResetMethod(structName string, fields []resetField) string {
 	return result
 }
 
+func generateResetMethods(structs []GenerationMarkedStructInfo) string {
+	result := ""
+
+	if hasPointerFields(structs) {
+		result += generateResetPointerHelper()
+	}
+
+	for _, st := range structs {
+		result += generateResetMethod(st.Name, st.Fields)
+	}
+
+	return result
+}
+
+func generateResetPointerHelper() string {
+	return `func resetPointer[T any](v *T) {
+	if v == nil {
+		return
+	}
+
+	if resetter, ok := any(v).(interface{ Reset() }); ok {
+		resetter.Reset()
+		return
+	}
+
+	*v = *new(T)
+}
+
+`
+}
+
+func hasPointerFields(structs []GenerationMarkedStructInfo) bool {
+	for _, st := range structs {
+		for _, field := range st.Fields {
+			if field.Kind == resetFieldPointer {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 type resetFieldKind int
 
 const (
@@ -31,16 +73,17 @@ const (
 )
 
 type resetField struct {
-	Name       string
-	ZeroValue  string
-	Kind       resetFieldKind
-	ImportPath string
+	Name          string
+	ZeroValue     string
+	ElemZeroValue string
+	Kind          resetFieldKind
+	ImportPath    string
 }
 
 func (f resetField) ResetLine(receiver string) string {
 	switch f.Kind {
 	case resetFieldPointer:
-		return fmt.Sprintf("\t%s.%s = %s\n", receiver, f.Name, strings.Replace(f.ZeroValue, "*", "", 1))
+		return fmt.Sprintf("\tresetPointer(%s.%s)\n", receiver, f.Name)
 	case resetFieldSlice:
 		return fmt.Sprintf("\t%s.%s = %s.%s[:0]\n",
 			receiver, f.Name, receiver, f.Name)

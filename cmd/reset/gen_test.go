@@ -2,50 +2,9 @@ package main
 
 import "testing"
 
-func TestGenerateResetMethod(t *testing.T) {
-	fields := []resetField{
-		{Name: "Name", ZeroValue: `""`, Kind: resetFieldScalar},
-		{Name: "Age", ZeroValue: "0", Kind: resetFieldScalar},
-		{Name: "Logger", ZeroValue: "nil", Kind: resetFieldPointer},
-		{Name: "Tags", ZeroValue: "nil", Kind: resetFieldSlice},
-		{Name: "Attrs", ZeroValue: "nil", Kind: resetFieldMap},
-		{Name: "State", ZeroValue: "nil", Kind: resetFieldResetter},
-	}
+func TestResetField_ResetLine(t *testing.T) {
+	t.Parallel()
 
-	got := generateResetMethod("User", fields)
-	want := "func (v *User) Reset() {\n" +
-		"\tif v == nil {\n" +
-		"\t\treturn\n" +
-		"\t}\n\n" +
-		"\tv.Name = \"\"\n" +
-		"\tv.Age = 0\n" +
-		"\tv.Logger = new(Logger)\n" +
-		"\tv.Tags = v.Tags[:0]\n" +
-		"\tclear(v.Attrs)\n" +
-		"\tif resetter, ok := any(v.State).(interface{ Reset() }); ok && v.State != nil {\n" +
-		"\t\tresetter.Reset()\n" +
-		"\t}\n" +
-		"}\n\n"
-
-	if got != want {
-		t.Fatalf("generateResetMethod() =\n%s\nwant:\n%s", got, want)
-	}
-}
-
-func TestGenerateResetMethodWithoutFields(t *testing.T) {
-	got := generateResetMethod("Empty", nil)
-	want := "func (v *Empty) Reset() {\n" +
-		"\tif v == nil {\n" +
-		"\t\treturn\n" +
-		"\t}\n\n" +
-		"}\n\n"
-
-	if got != want {
-		t.Fatalf("generateResetMethod() =\n%s\nwant:\n%s", got, want)
-	}
-}
-
-func TestResetFieldResetLine(t *testing.T) {
 	tests := []struct {
 		name     string
 		field    resetField
@@ -53,51 +12,226 @@ func TestResetFieldResetLine(t *testing.T) {
 		want     string
 	}{
 		{
-			name:     "scalar",
-			field:    resetField{Name: "Name", ZeroValue: `""`, Kind: resetFieldScalar},
+			name: "scalar",
+			field: resetField{
+				Name:      "Name",
+				ZeroValue: `""`,
+				Kind:      resetFieldScalar,
+			},
 			receiver: "v",
 			want:     "\tv.Name = \"\"\n",
 		},
 		{
-			name:     "pointer",
-			field:    resetField{Name: "Logger", ZeroValue: "nil", Kind: resetFieldPointer},
+			name: "pointer",
+			field: resetField{
+				Name: "Client",
+				Kind: resetFieldPointer,
+			},
 			receiver: "v",
-			want:     "\tv.Logger = new(Logger)\n",
+			want:     "\tresetPointer(v.Client)\n",
 		},
 		{
-			name:     "slice",
-			field:    resetField{Name: "Tags", ZeroValue: "nil", Kind: resetFieldSlice},
+			name: "slice",
+			field: resetField{
+				Name: "Metrics",
+				Kind: resetFieldSlice,
+			},
 			receiver: "v",
-			want:     "\tv.Tags = v.Tags[:0]\n",
+			want:     "\tv.Metrics = v.Metrics[:0]\n",
 		},
 		{
-			name:     "map",
-			field:    resetField{Name: "Attrs", ZeroValue: "nil", Kind: resetFieldMap},
+			name: "map",
+			field: resetField{
+				Name: "Values",
+				Kind: resetFieldMap,
+			},
 			receiver: "v",
-			want:     "\tclear(v.Attrs)\n",
+			want:     "\tclear(v.Values)\n",
 		},
 		{
-			name:     "resetter",
-			field:    resetField{Name: "State", ZeroValue: "nil", Kind: resetFieldResetter},
+			name: "resetter",
+			field: resetField{
+				Name: "Time",
+				Kind: resetFieldResetter,
+			},
 			receiver: "v",
-			want: "\tif resetter, ok := any(v.State).(interface{ Reset() }); ok && v.State != nil {\n" +
-				"\t\tresetter.Reset()\n" +
-				"\t}\n",
-		},
-		{
-			name:     "custom receiver",
-			field:    resetField{Name: "Count", ZeroValue: "0", Kind: resetFieldScalar},
-			receiver: "dst",
-			want:     "\tdst.Count = 0\n",
+			want: "\tif resetter, ok := any(v.Time).(interface{ Reset() }); ok &&" +
+				" v.Time != nil {\n\t\tresetter.Reset()\n\t}\n",
 		},
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := tt.field.ResetLine(tt.receiver)
 			if got != tt.want {
-				t.Fatalf("ResetLine() =\n%s\nwant:\n%s", got, tt.want)
+				t.Fatalf("ResetLine() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestGenerateResetMethod(t *testing.T) {
+	t.Parallel()
+
+	fields := []resetField{
+		{Name: "Name", ZeroValue: `""`, Kind: resetFieldScalar},
+		{Name: "Metrics", Kind: resetFieldSlice},
+		{Name: "Values", Kind: resetFieldMap},
+	}
+
+	got := generateResetMethod("Event", fields)
+	want := "func (v *Event) Reset() {\n" +
+		"\tif v == nil {\n" +
+		"\t\treturn\n" +
+		"\t}\n\n" +
+		"\tv.Name = \"\"\n" +
+		"\tv.Metrics = v.Metrics[:0]\n" +
+		"\tclear(v.Values)\n" +
+		"}\n\n"
+
+	if got != want {
+		t.Fatalf("generateResetMethod() = %q, want %q", got, want)
+	}
+}
+
+func TestGenerateResetPointerHelper(t *testing.T) {
+	t.Parallel()
+
+	got := generateResetPointerHelper()
+	want := `func resetPointer[T any](v *T) {
+	if v == nil {
+		return
+	}
+
+	if resetter, ok := any(v).(interface{ Reset() }); ok {
+		resetter.Reset()
+		return
+	}
+
+	*v = *new(T)
+}
+
+`
+
+	if got != want {
+		t.Fatalf("generateResetPointerHelper() = %q, want %q", got, want)
+	}
+}
+
+func TestHasPointerFields(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		structs []GenerationMarkedStructInfo
+		want    bool
+	}{
+		{
+			name: "empty structs",
+		},
+		{
+			name: "no pointer fields",
+			structs: []GenerationMarkedStructInfo{
+				{
+					Name: "Event",
+					Fields: []resetField{
+						{Name: "Name", Kind: resetFieldScalar},
+						{Name: "Metrics", Kind: resetFieldSlice},
+					},
+				},
+			},
+		},
+		{
+			name: "has pointer field",
+			structs: []GenerationMarkedStructInfo{
+				{
+					Name: "Agent",
+					Fields: []resetField{
+						{Name: "Client", Kind: resetFieldPointer},
+					},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := hasPointerFields(tt.structs)
+			if got != tt.want {
+				t.Fatalf("hasPointerFields() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGenerateResetMethodsWithoutPointerFields(t *testing.T) {
+	t.Parallel()
+
+	structs := []GenerationMarkedStructInfo{
+		{
+			Name: "Event",
+			Fields: []resetField{
+				{Name: "Name", ZeroValue: `""`, Kind: resetFieldScalar},
+			},
+		},
+	}
+
+	got := generateResetMethods(structs)
+	want := "func (v *Event) Reset() {\n" +
+		"\tif v == nil {\n" +
+		"\t\treturn\n" +
+		"\t}\n\n" +
+		"\tv.Name = \"\"\n" +
+		"}\n\n"
+
+	if got != want {
+		t.Fatalf("generateResetMethods() = %q, want %q", got, want)
+	}
+}
+
+func TestGenerateResetMethodsWithPointerFields(t *testing.T) {
+	t.Parallel()
+
+	structs := []GenerationMarkedStructInfo{
+		{
+			Name: "Agent",
+			Fields: []resetField{
+				{Name: "Client", Kind: resetFieldPointer},
+				{Name: "ServerAddr", ZeroValue: `""`, Kind: resetFieldScalar},
+			},
+		},
+		{
+			Name: "WebSink",
+			Fields: []resetField{
+				{Name: "AuditURL", ZeroValue: `""`, Kind: resetFieldScalar},
+			},
+		},
+	}
+
+	got := generateResetMethods(structs)
+	want := generateResetPointerHelper() +
+		"func (v *Agent) Reset() {\n" +
+		"\tif v == nil {\n" +
+		"\t\treturn\n" +
+		"\t}\n\n" +
+		"\tresetPointer(v.Client)\n" +
+		"\tv.ServerAddr = \"\"\n" +
+		"}\n\n" +
+		"func (v *WebSink) Reset() {\n" +
+		"\tif v == nil {\n" +
+		"\t\treturn\n" +
+		"\t}\n\n" +
+		"\tv.AuditURL = \"\"\n" +
+		"}\n\n"
+
+	if got != want {
+		t.Fatalf("generateResetMethods() = %q, want %q", got, want)
 	}
 }

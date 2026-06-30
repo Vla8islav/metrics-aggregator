@@ -14,7 +14,8 @@ func main() {
 		panic(err)
 	}
 
-	packageToResetFileContents := make(map[string]string)
+	packageToName := make(map[string]string)
+	packageToStructs := make(map[string][]GenerationMarkedStructInfo)
 	packageToImports := make(map[string]map[string]struct{})
 
 	for _, file := range files {
@@ -28,9 +29,8 @@ func main() {
 			fmt.Println("package:", packageName)
 			fmt.Println("struct:", s.Name)
 			fmt.Print(generateResetMethod(s.Name, s.Fields))
-			if _, found := packageToResetFileContents[packageDir]; !found {
-				packageToResetFileContents[packageDir] += "package " + packageName + "\n"
-			}
+			packageToName[packageDir] = packageName
+			packageToStructs[packageDir] = append(packageToStructs[packageDir], s)
 			if _, found := packageToImports[packageDir]; !found {
 				packageToImports[packageDir] = make(map[string]struct{})
 			}
@@ -39,13 +39,14 @@ func main() {
 					packageToImports[packageDir][field.ImportPath] = struct{}{}
 				}
 			}
-
-			packageToResetFileContents[packageDir] += "\n"
-			packageToResetFileContents[packageDir] += generateResetMethod(s.Name, s.Fields)
 		}
 	}
 
-	for packageDir, content := range packageToResetFileContents {
+	for packageDir, structs := range packageToStructs {
+		var content strings.Builder
+		content.WriteString("package ")
+		content.WriteString(packageToName[packageDir])
+		content.WriteString("\n\n")
 		imports := packageToImports[packageDir]
 		if len(imports) > 0 {
 			var importPaths []string
@@ -61,10 +62,11 @@ func main() {
 				importBlock.WriteString("\"\n")
 			}
 			importBlock.WriteString(")\n\n")
-			content = strings.Replace(content, "\n", "\n\n"+importBlock.String(), 1)
+			content.WriteString(importBlock.String())
 		}
+		content.WriteString(generateResetMethods(structs))
 		outputPath := filepath.Join(packageDir, "reset.gen.go")
-		if err := os.WriteFile(outputPath, []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(content.String()), 0o644); err != nil {
 			panic(err)
 		}
 	}
