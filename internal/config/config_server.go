@@ -27,6 +27,7 @@ type OptionsServer struct {
 	AuditFile OptionalString `env:"AUDIT_FILE"`
 
 	SecretKey OptionalString `env:"KEY"`
+	CryptoKey OptionalString `env:"CRYPTO_KEY"`
 }
 
 func logSetFlagsServer(options *OptionsServer) {
@@ -69,6 +70,10 @@ func logSetFlagsServer(options *OptionsServer) {
 
 	if options.AuditFile.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("--audit-file=%s", options.AuditFile.Value))
+	}
+
+	if options.CryptoKey.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-crypto-key=%s", options.CryptoKey.Value))
 	}
 
 	if len(setFlags) == 0 {
@@ -123,6 +128,10 @@ func logSetEnvServer(options *OptionsServer) {
 		setEnv = append(setEnv, fmt.Sprintf("AUDIT_FILE=%s", options.AuditFile.Value))
 	}
 
+	if options.CryptoKey.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("CRYPTO_KEY=%s", options.CryptoKey.Value))
+	}
+
 	if len(setEnv) == 0 {
 		log.Println("no environment variables were set")
 		return
@@ -158,6 +167,7 @@ func ReadFlagsServer(args []string) *OptionsServer {
 		SecretKey:        OptionalString{Value: "", BeenSet: false},
 		AuditFile:        OptionalString{Value: "", BeenSet: false},
 		AuditURL:         OptionalString{Value: "", BeenSet: false},
+		CryptoKey:        OptionalString{Value: "", BeenSet: false},
 	}
 
 	// env options are the priority
@@ -213,6 +223,11 @@ func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 		mergeInto.AuditFile = newValues.AuditFile
 		mergeInto.AuditFile.BeenSet = true
 	}
+
+	if newValues.CryptoKey.BeenSet {
+		mergeInto.CryptoKey = newValues.CryptoKey
+		mergeInto.CryptoKey.BeenSet = true
+	}
 }
 
 func getEnvOptions() *OptionsServer {
@@ -245,6 +260,8 @@ func getOptionsServer(args []string) (*OptionsServer, error) {
 
 	fs.Var(&opt.AuditURL, "audit-url", "адрес сервера аудита")
 	fs.Var(&opt.AuditFile, "audit-file", "путь до файла с публичным ключом аудита")
+
+	fs.Var(&opt.CryptoKey, "crypto-key", "путь до файла с приватным ключом")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err

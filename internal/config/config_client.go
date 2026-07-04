@@ -18,6 +18,7 @@ type OptionsClient struct {
 	PollInterval   OptionalSecondsDuration `env:"POLL_INTERVAL"`
 	ReportInterval OptionalSecondsDuration `env:"REPORT_INTERVAL"`
 	RateLimit      OptionalInt             `env:"RATE_LIMIT"`
+	CryptoKey      OptionalString          `env:"CRYPTO_KEY"`
 
 	SecretKey OptionalString `env:"KEY"`
 }
@@ -46,6 +47,10 @@ func logSetFlagsClient(options *OptionsClient) {
 
 	if options.RateLimit.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("-l=%d", options.RateLimit.Value))
+	}
+
+	if options.CryptoKey.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-crypto-key=%d", options.CryptoKey.Value))
 	}
 
 	if len(setFlags) == 0 {
@@ -84,6 +89,10 @@ func logSetEnvClient(options *OptionsClient) {
 		setEnv = append(setEnv, fmt.Sprintf("RATE_LIMIT=%d", options.RateLimit.Value))
 	}
 
+	if options.CryptoKey.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("CRYPTO_KEY=%d", options.CryptoKey.Value))
+	}
+
 	if len(setEnv) == 0 {
 		log.Println("no environment variables were set")
 		return
@@ -111,6 +120,7 @@ func ReadFlagsClient(args []string) *OptionsClient {
 		ReportInterval: OptionalSecondsDuration{Duration: time.Second * 10, BeenSet: false},
 		SecretKey:      OptionalString{Value: "", BeenSet: false},
 		RateLimit:      OptionalInt{Value: 10, BeenSet: false},
+		CryptoKey:      OptionalString{Value: "", BeenSet: false},
 	}
 
 	// env options are the priority
@@ -146,6 +156,11 @@ func mergeOptionsClient(mergeInto *OptionsClient, newValues OptionsClient) {
 		mergeInto.RateLimit = newValues.RateLimit
 		mergeInto.RateLimit.BeenSet = true
 	}
+
+	if newValues.CryptoKey.BeenSet {
+		mergeInto.CryptoKey = newValues.CryptoKey
+		mergeInto.CryptoKey.BeenSet = true
+	}
 }
 
 func getEnvOptionsClient() *OptionsClient {
@@ -167,10 +182,10 @@ func getOptionsClient(args []string) (*OptionsClient, error) {
 	fs.Var(&opt.ServerAddress, "a", "port on which the server should run")
 	fs.Var(&opt.ReportInterval, "r", "how often console utility should send metrics")
 	fs.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")
-
 	fs.Var(&opt.SecretKey, "k", "симметричный ключ шифрования для подписи сообщений")
-
 	fs.Var(&opt.RateLimit, "l", "потолок одновременных запросов делается к серверу, RATE_LIMIT")
+
+	fs.Var(&opt.CryptoKey, "crypto-key", "путь до файла с публичным ключом")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err
