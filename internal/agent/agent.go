@@ -222,6 +222,11 @@ func (a *Agent) getSignatureHeaderValue(payloadBytes []byte) string {
 	return helpers.Sha256WithKeyHex(payloadBytes, []byte(a.config.SecretKey.Value))
 }
 
+// encryptMessage get the encrypted payload
+func (a *Agent) encryptMessage(payloadBytes []byte) string {
+	return helpers.Sha256WithKeyHex(payloadBytes, []byte(a.config.SecretKey.Value))
+}
+
 // sendBatch sends a gzip-compressed and signed metrics batch to the server
 func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	if metrics == nil {
@@ -243,6 +248,8 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 		return fmt.Errorf("couldn't marshal metrics payload: %w", err)
 	}
 	a.logger.Info("sending batch payload", zap.String("payload", string(payloadBytes)))
+
+	// payload encryption using the cert
 
 	payloadBytesCompressed, err := helpers.GzipCompress(payloadBytes)
 	if err != nil {

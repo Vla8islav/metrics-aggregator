@@ -29,8 +29,8 @@ func main() {
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
 	reportInterval := currentConfig.ReportInterval.Duration
-	log.Printf("agent started: metric_poll=%s report=%s server=%s secret_is_set=%v",
-		pollInterval, reportInterval, serverAddr, currentConfig.SecretKey.BeenSet)
+	log.Printf("agent started: metric_poll=%s report=%s server=%s crypto_key=%s secret_is_set=%v",
+		pollInterval, reportInterval, serverAddr, currentConfig.CryptoKey.Value, currentConfig.SecretKey.BeenSet)
 	ag.Start(ctx)
 
 }
