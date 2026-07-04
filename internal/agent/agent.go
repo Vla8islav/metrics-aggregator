@@ -4,10 +4,18 @@ package agent
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"sync"
 	"time"
@@ -30,6 +38,15 @@ type Agent struct {
 	gauges *models.Stats
 	config *config.OptionsClient
 	logger *zap.Logger
+}
+
+// encryptedPayload contains a hybrid-encrypted request body.
+// it's necessary to send large payloads
+// Data contains the request body encrypted with AES-GCM
+type encryptedPayload struct {
+	Key   []byte `json:"key"`
+	Nonce []byte `json:"nonce"`
+	Data  []byte `json:"data"`
 }
 
 // NewAgent creates an Agent configured with the provided client options and logger
@@ -222,9 +239,79 @@ func (a *Agent) getSignatureHeaderValue(payloadBytes []byte) string {
 	return helpers.Sha256WithKeyHex(payloadBytes, []byte(a.config.SecretKey.Value))
 }
 
-// encryptMessage get the encrypted payload
-func (a *Agent) encryptMessage(payloadBytes []byte) string {
-	return helpers.Sha256WithKeyHex(payloadBytes, []byte(a.config.SecretKey.Value))
+func (a *Agent) readPublicKey() (*x509.Certificate, error) {
+	if !a.config.CryptoKey.BeenSet || "" == a.config.CryptoKey.Value {
+		return nil, fmt.Errorf("crypto key wasn't set")
+	}
+
+	publicKeyPath := a.config.CryptoKey.Value
+
+	certificateBytes, err := os.ReadFile(publicKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	certificatePemBlock, _ := pem.Decode(certificateBytes)
+	if certificatePemBlock == nil {
+		return nil, errors.New("certificate not found")
+	}
+
+	certificate, err := x509.ParseCertificate(certificatePemBlock.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return certificate, nil
+}
+
+// encryptMessage encrypts the payload using hybrid encryption.
+//
+// RSA can encrypt only small messages, so the payload itself is encrypted with AES-GCM
+// The random AES key is then encrypted with the server RSA public key from the certificate
+func (a *Agent) encryptMessage(message []byte) ([]byte, error) {
+	certificate, err := a.readPublicKey()
+	if err != nil {
+		return nil, err
+	}
+
+	publicKey, ok := certificate.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("certificate public key is not RSA")
+	}
+
+	aesKey := make([]byte, 32)
+	if _, err = rand.Read(aesKey); err != nil {
+		return nil, err
+	}
+
+	block, err := aes.NewCipher(aesKey)
+	if err != nil {
+		return nil, err
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err = rand.Read(nonce); err != nil {
+		return nil, err
+	}
+
+	encryptedData := aesGCM.Seal(nil, nonce, message, nil)
+	encryptedKey, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, aesKey)
+	if err != nil {
+		return nil, err
+	}
+
+	payload := encryptedPayload{
+		Key:   encryptedKey,
+		Nonce: nonce,
+		Data:  encryptedData,
+	}
+
+	return json.Marshal(payload)
 }
 
 // sendBatch sends a gzip-compressed and signed metrics batch to the server
@@ -250,6 +337,12 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	a.logger.Info("sending batch payload", zap.String("payload", string(payloadBytes)))
 
 	// payload encryption using the cert
+	if a.config.CryptoKey.BeenSet {
+		payloadBytes, err = a.encryptMessage(payloadBytes)
+		if err != nil {
+			return fmt.Errorf("couldn't encrypt the payload %w", err)
+		}
+	}
 
 	payloadBytesCompressed, err := helpers.GzipCompress(payloadBytes)
 	if err != nil {

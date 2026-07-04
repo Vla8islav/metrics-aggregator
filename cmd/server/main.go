@@ -11,6 +11,7 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/domain"
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
+	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/Vla8islav/metrics-aggregator/internal/middlewares"
 	"github.com/Vla8islav/metrics-aggregator/internal/service"
 	"go.uber.org/zap"
@@ -72,6 +73,17 @@ func main() {
 		handlerWithMW = middlewares.ChainMiddlewares(
 			handlerWithMW,
 			middlewares.WithChecksum(currentConfig.SecretKey.Value, logger),
+		)
+	}
+
+	if currentConfig.CryptoKey.BeenSet {
+		privateKey, err := helpers.ReadPrivateKey(currentConfig.CryptoKey.Value)
+		if err != nil {
+			logger.Fatal("failed to read private key", zap.Error(err))
+		}
+		handlerWithMW = middlewares.ChainMiddlewares(
+			handlerWithMW,
+			middlewares.WithEncryption(privateKey, logger),
 		)
 	}
 
