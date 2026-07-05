@@ -14,13 +14,15 @@ import (
 // OptionsClient configuration parameters for the metrics agent client
 // the order of precedence: env, command line, default value
 type OptionsClient struct {
-	ServerAddress  OptionalString          `env:"ADDRESS"`
-	PollInterval   OptionalSecondsDuration `env:"POLL_INTERVAL"`
-	ReportInterval OptionalSecondsDuration `env:"REPORT_INTERVAL"`
-	RateLimit      OptionalInt             `env:"RATE_LIMIT"`
-	CryptoKey      OptionalString          `env:"CRYPTO_KEY"`
+	ServerAddress  OptionalString          `env:"ADDRESS" json:"address"`
+	PollInterval   OptionalSecondsDuration `env:"POLL_INTERVAL" json:"poll_interval"`
+	ReportInterval OptionalSecondsDuration `env:"REPORT_INTERVAL" json:"report_interval"`
+	RateLimit      OptionalInt             `env:"RATE_LIMIT" json:"rate_limit"`
+	CryptoKey      OptionalString          `env:"CRYPTO_KEY" json:"crypto_key"`
 
-	SecretKey OptionalString `env:"KEY"`
+	SecretKey OptionalString `env:"KEY" json:"secret_key"`
+
+	Config OptionalString `env:"Config" json:"-"`
 }
 
 func logSetFlagsClient(options *OptionsClient) {
@@ -51,6 +53,10 @@ func logSetFlagsClient(options *OptionsClient) {
 
 	if options.CryptoKey.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("-crypto-key=%d", options.CryptoKey.Value))
+	}
+
+	if options.Config.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-config=%d", options.Config.Value))
 	}
 
 	if len(setFlags) == 0 {
@@ -93,6 +99,10 @@ func logSetEnvClient(options *OptionsClient) {
 		setEnv = append(setEnv, fmt.Sprintf("CRYPTO_KEY=%d", options.CryptoKey.Value))
 	}
 
+	if options.Config.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("CONFIG=%d", options.Config.Value))
+	}
+
 	if len(setEnv) == 0 {
 		log.Println("no environment variables were set")
 		return
@@ -121,6 +131,7 @@ func ReadFlagsClient(args []string) *OptionsClient {
 		SecretKey:      OptionalString{Value: "", BeenSet: false},
 		RateLimit:      OptionalInt{Value: 10, BeenSet: false},
 		CryptoKey:      OptionalString{Value: "", BeenSet: false},
+		Config:         OptionalString{Value: "", BeenSet: false},
 	}
 
 	// env options are the priority
@@ -161,6 +172,11 @@ func mergeOptionsClient(mergeInto *OptionsClient, newValues OptionsClient) {
 		mergeInto.CryptoKey = newValues.CryptoKey
 		mergeInto.CryptoKey.BeenSet = true
 	}
+
+	if newValues.Config.BeenSet {
+		mergeInto.Config = newValues.Config
+		mergeInto.Config.BeenSet = true
+	}
 }
 
 func getEnvOptionsClient() *OptionsClient {
@@ -186,6 +202,7 @@ func getOptionsClient(args []string) (*OptionsClient, error) {
 	fs.Var(&opt.RateLimit, "l", "потолок одновременных запросов делается к серверу, RATE_LIMIT")
 
 	fs.Var(&opt.CryptoKey, "crypto-key", "путь до файла с публичным ключом")
+	fs.Var(&opt.CryptoKey, "config", "путь до файла с конфигурацией приложения")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err

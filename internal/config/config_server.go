@@ -14,20 +14,22 @@ import (
 //
 // Values' order of precedence: environment vars, command-line flags, defaults
 type OptionsServer struct {
-	ServerAddress OptionalString `env:"ADDRESS"`
+	ServerAddress OptionalString `env:"ADDRESS" json:"address"`
 
-	StoreInterval   OptionalSecondsDuration `env:"STORE_INTERVAL"`
-	FileStoragePath OptionalString          `env:"FILE_STORAGE_PATH"`
-	Restore         OptionalBool            `env:"RESTORE"`
+	StoreInterval   OptionalSecondsDuration `env:"STORE_INTERVAL" json:"store_interval"`
+	FileStoragePath OptionalString          `env:"FILE_STORAGE_PATH" json:"store_file"`
+	Restore         OptionalBool            `env:"RESTORE" json:"restore"`
 
-	DatabaseDSN      OptionalString `env:"DATABASE_DSN"`
-	MigrationsFolder OptionalString `env:"MIGRATIONS_FOLDER"`
+	DatabaseDSN      OptionalString `env:"DATABASE_DSN" json:"database_dsn"`
+	MigrationsFolder OptionalString `env:"MIGRATIONS_FOLDER" json:"migrations_folder"`
 
-	AuditURL  OptionalString `env:"AUDIT_URL"`
-	AuditFile OptionalString `env:"AUDIT_FILE"`
+	AuditURL  OptionalString `env:"AUDIT_URL" json:"audit_url"`
+	AuditFile OptionalString `env:"AUDIT_FILE" json:"audit_file"`
 
-	SecretKey OptionalString `env:"KEY"`
-	CryptoKey OptionalString `env:"CRYPTO_KEY"`
+	SecretKey OptionalString `env:"KEY" json:"secret_key"`
+	CryptoKey OptionalString `env:"CRYPTO_KEY" json:"crypto_key"`
+
+	Config OptionalString `env:"Config" json:"-"`
 }
 
 func logSetFlagsServer(options *OptionsServer) {
@@ -74,6 +76,10 @@ func logSetFlagsServer(options *OptionsServer) {
 
 	if options.CryptoKey.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("-crypto-key=%s", options.CryptoKey.Value))
+	}
+
+	if options.Config.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-config=%s", options.Config.Value))
 	}
 
 	if len(setFlags) == 0 {
@@ -132,6 +138,10 @@ func logSetEnvServer(options *OptionsServer) {
 		setEnv = append(setEnv, fmt.Sprintf("CRYPTO_KEY=%s", options.CryptoKey.Value))
 	}
 
+	if options.Config.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("CONFIG=%s", options.Config.Value))
+	}
+
 	if len(setEnv) == 0 {
 		log.Println("no environment variables were set")
 		return
@@ -168,6 +178,8 @@ func ReadFlagsServer(args []string) *OptionsServer {
 		AuditFile:        OptionalString{Value: "", BeenSet: false},
 		AuditURL:         OptionalString{Value: "", BeenSet: false},
 		CryptoKey:        OptionalString{Value: "", BeenSet: false},
+
+		Config: OptionalString{Value: "", BeenSet: false},
 	}
 
 	// env options are the priority
@@ -227,6 +239,11 @@ func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 	if newValues.CryptoKey.BeenSet {
 		mergeInto.CryptoKey = newValues.CryptoKey
 		mergeInto.CryptoKey.BeenSet = true
+	}
+
+	if newValues.Config.BeenSet {
+		mergeInto.Config = newValues.Config
+		mergeInto.Config.BeenSet = true
 	}
 }
 
