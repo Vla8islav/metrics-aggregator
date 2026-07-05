@@ -1,3 +1,4 @@
+// Package agent periodically collects runtime metrics and reports them to the server
 package agent
 
 import (
@@ -18,6 +19,7 @@ import (
 )
 
 // Agent periodically collects runtime metrics and reports them to the server
+// generate:reset
 type Agent struct {
 	client         *helpers.HTTPRetryClient
 	serverAddr     string

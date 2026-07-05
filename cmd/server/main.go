@@ -19,6 +19,7 @@ import (
 )
 
 func main() {
+	printBuildInfo()
 
 	//< for testing only, delete in prod
 	//runtime.SetBlockProfileRate(1)
@@ -53,8 +54,8 @@ func main() {
 		sinks = append(sinks, fileSink)
 	}
 	if currentConfig.AuditURL.BeenSet {
-		webSink, err := audit.NewWebSink(currentConfig.AuditURL.Value)
-		if err != nil {
+		webSink, err2 := audit.NewWebSink(currentConfig.AuditURL.Value)
+		if err2 != nil {
 			logger.Fatal("failed to initialize web sink", zap.Error(err))
 		}
 		sinks = append(sinks, webSink)

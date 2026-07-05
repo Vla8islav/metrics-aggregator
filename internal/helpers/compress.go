@@ -1,3 +1,4 @@
+// Package helpers helper functions that don't belong anywhere else
 package helpers
 
 import (

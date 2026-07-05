@@ -1,3 +1,4 @@
+// Package middlewares my middlewares to do things like auth or compression
 package middlewares
 
 import (

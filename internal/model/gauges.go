@@ -1,3 +1,4 @@
+// Package models data models for the metric aggregation server
 package models
 
 import (

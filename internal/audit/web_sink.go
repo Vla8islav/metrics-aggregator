@@ -13,6 +13,7 @@ import (
 )
 
 // WebSink writes audit events to an HTTP endpoint
+// generate:reset
 type WebSink struct {
 	client   *helpers.HTTPRetryClient
 	auditURL string
