@@ -166,6 +166,21 @@ func ReadFlagsServer(args []string) *OptionsServer {
 	envOptions := getEnvOptions()
 	logSetEnvServer(envOptions)
 
+	var diskConfigOptions OptionsServer
+	if cmdOptions.Config.BeenSet || envOptions.Config.BeenSet {
+		// we need to read the config file before assembling the full consensus
+		var configFilename string
+		if cmdOptions.Config.BeenSet && cmdOptions.Config.Value != "" {
+			configFilename = cmdOptions.Config.Value
+		} else if envOptions.Config.BeenSet && envOptions.Config.Value != "" {
+			configFilename = envOptions.Config.Value
+		}
+		diskConfigOptions, err = getDiskConfigOptions(configFilename)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}
+
 	finalOptions := OptionsServer{
 		ServerAddress:   OptionalString{Value: "localhost:8080", BeenSet: false},
 		StoreInterval:   OptionalSecondsDuration{Duration: time.Second * 300, BeenSet: false},
@@ -182,12 +197,17 @@ func ReadFlagsServer(args []string) *OptionsServer {
 		Config: OptionalString{Value: "", BeenSet: false},
 	}
 
-	// env options are the priority
+	// env options are the priority, then cmd options, then disk options
+	mergeOptionsServer(&finalOptions, diskConfigOptions)
 	mergeOptionsServer(&finalOptions, *cmdOptions)
 	mergeOptionsServer(&finalOptions, *envOptions)
 
 	//setOptionsTrue(&finalOptions)
 	return &finalOptions
+}
+
+func getDiskConfigOptions(filename string) (OptionsServer, error) {
+
 }
 
 func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
