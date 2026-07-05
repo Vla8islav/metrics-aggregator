@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/audit"
@@ -20,6 +23,7 @@ import (
 )
 
 func main() {
+
 	printBuildInfo()
 
 	//< for testing only, delete in prod
@@ -36,8 +40,8 @@ func main() {
 	logger.Info("starting server ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	var db domain.MetricRepository
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	defer stop()
 
 	db, err = initDB(ctx, currentConfig, logger)
 	if err != nil {
@@ -100,10 +104,32 @@ func main() {
 	}
 
 	go func() { log.Println(http.ListenAndServe("localhost:6060", nil)) }()
-	err = srvImpl.ListenAndServe()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srvImpl.ListenAndServe()
+	}()
 
-	if err != nil {
-		logger.Fatal(err.Error())
-		return
+	select {
+	case <-ctx.Done():
+		logger.Info("shutdown signal received")
+	case err = <-errCh:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Fatal("server failed", zap.Error(err))
+		}
 	}
+
+	stop()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+
+	if err = srvImpl.Shutdown(shutdownCtx); err != nil {
+		logger.Fatal("failed to shutdown server gracefully", zap.Error(err))
+	}
+
+	if err = <-errCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
+		logger.Fatal("server failed during shutdown", zap.Error(err))
+	}
+
+	logger.Info("server stopped")
 }
