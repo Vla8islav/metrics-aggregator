@@ -1,10 +1,12 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -29,7 +31,7 @@ type OptionsServer struct {
 	SecretKey OptionalString `env:"KEY" json:"secret_key"`
 	CryptoKey OptionalString `env:"CRYPTO_KEY" json:"crypto_key"`
 
-	Config OptionalString `env:"Config" json:"-"`
+	Config OptionalString `env:"CONFIG" json:"-"`
 }
 
 func logSetFlagsServer(options *OptionsServer) {
@@ -152,6 +154,62 @@ func logSetEnvServer(options *OptionsServer) {
 	}
 }
 
+func logConfigOptions(options *OptionsServer) {
+	if options == nil {
+		return
+	}
+	var setOptions []string
+
+	if options.ServerAddress.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("address=%s", options.ServerAddress.Value))
+	}
+
+	if options.StoreInterval.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("store_interval=%s", options.StoreInterval.Duration))
+	}
+
+	if options.FileStoragePath.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("store_file=%s", options.FileStoragePath.Value))
+	}
+
+	if options.Restore.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("restore=%t", options.Restore.Value))
+	}
+
+	if options.DatabaseDSN.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("database_dsn=%s", options.DatabaseDSN.Value))
+	}
+
+	if options.MigrationsFolder.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("migrations_folder=%s", options.MigrationsFolder.Value))
+	}
+
+	if options.SecretKey.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("secret_key=%s", options.SecretKey.Value))
+	}
+
+	if options.AuditURL.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("audit_url=%s", options.AuditURL.Value))
+	}
+
+	if options.AuditFile.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("audit_file=%s", options.AuditFile.Value))
+	}
+
+	if options.CryptoKey.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("crypto_key=%s", options.CryptoKey.Value))
+	}
+
+	if len(setOptions) == 0 {
+		log.Println("no config file options were set")
+		return
+	}
+
+	for _, optionValue := range setOptions {
+		log.Printf("config file option set: %s", optionValue)
+	}
+}
+
 // ReadFlagsServer reads server configuration from command-line arguments and environment variables.
 //
 // Returns the final merged server options, using defaults first, command-line flags second,
@@ -179,6 +237,7 @@ func ReadFlagsServer(args []string) *OptionsServer {
 		if err != nil {
 			log.Fatalln(err)
 		}
+		logConfigOptions(&diskConfigOptions)
 	}
 
 	finalOptions := OptionsServer{
@@ -207,7 +266,21 @@ func ReadFlagsServer(args []string) *OptionsServer {
 }
 
 func getDiskConfigOptions(filename string) (OptionsServer, error) {
+	if filename == "" {
+		return OptionsServer{}, nil
+	}
 
+	configBytes, err := os.ReadFile(filename)
+	if err != nil {
+		return OptionsServer{}, err
+	}
+
+	var options OptionsServer
+	if err = json.Unmarshal(configBytes, &options); err != nil {
+		return OptionsServer{}, err
+	}
+
+	return options, nil
 }
 
 func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {

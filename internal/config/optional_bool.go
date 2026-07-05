@@ -1,6 +1,9 @@
 package config
 
-import "strconv"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 // OptionalBool boolean value that tracks whether it was explicitly set
 type OptionalBool struct {
@@ -31,6 +34,18 @@ func (b *OptionalBool) UnmarshalText(text []byte) error {
 		return err
 	}
 	b.Value = v
+	b.BeenSet = true
+	return nil
+}
+
+// UnmarshalJSON stores a JSON bool as a bool and marks the value as explicitly set
+func (b *OptionalBool) UnmarshalJSON(data []byte) error {
+	var value bool
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+
+	b.Value = value
 	b.BeenSet = true
 	return nil
 }
