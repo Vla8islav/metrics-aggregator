@@ -86,16 +86,21 @@ func (a *Agent) Start(ctx context.Context) {
 	jobs := make(chan job, a.rateLimit)
 	results := make(chan result)
 
-	var wg sync.WaitGroup
+	var workersWG sync.WaitGroup
 	for i := 1; i <= a.rateLimit; i++ {
-		wg.Add(1)
-		go a.workerReport(ctx, i, jobs, results, &wg)
+		workersWG.Add(1)
+		go a.workerReport(ctx, i, jobs, results, &workersWG)
 	}
 
+	var resultsWG sync.WaitGroup
+	resultsWG.Add(1)
+
 	go func() {
-		wg.Wait()
-		close(results)
+		defer resultsWG.Done()
+		a.runMetricsGatherer(ctx)
 	}()
+
+	resultsDone := make(chan struct{})
 
 	go func() {
 		for res := range results {
@@ -103,11 +108,17 @@ func (a *Agent) Start(ctx context.Context) {
 				a.logger.Warn("report job failed", zap.Int("jobID", res.JobID), zap.Error(res.Err))
 			}
 		}
+		close(resultsDone)
 	}()
 
-	go a.runMetricsGatherer(ctx)
-
 	a.runReporter(ctx, jobs)
+
+	close(jobs)
+
+	workersWG.Wait()
+	close(results)
+	<-resultsDone
+	resultsWG.Wait()
 }
 
 // runMetricsGatherer periodically refreshes the agent's in-memory metric values
@@ -150,10 +161,15 @@ func (a *Agent) workerReport(ctx context.Context, id int, jobs <-chan job, resul
 		if err == nil {
 			a.logger.Debug("report job finished", zap.Int("worker", id), zap.Int("jobID", j.ID))
 		}
-		results <- result{
+		select {
+		case <-ctx.Done():
+			return
+
+		case results <- result{
 			JobID: j.ID,
 			Value: fmt.Sprintf("workerReport %d processed j %d", id, j.ID),
 			Err:   err,
+		}: // empty
 		}
 	}
 }
