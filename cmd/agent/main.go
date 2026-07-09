@@ -36,7 +36,7 @@ func main() {
 		zap.Duration("metric_poll", pollInterval),
 		zap.Duration("report", reportInterval),
 		zap.String("server", serverAddr),
-		zap.String("crypto_key", currentConfig.CryptoKey.Value),
+		zap.Bool("crypto_key_is_set", currentConfig.CryptoKey.BeenSet),
 		zap.Bool("secret_is_set", currentConfig.SecretKey.BeenSet),
 	)
 
