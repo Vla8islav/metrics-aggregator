@@ -40,15 +40,6 @@ type Agent struct {
 	logger *zap.Logger
 }
 
-// encryptedPayload contains a hybrid-encrypted request body.
-// it's necessary to send large payloads
-// Data contains the request body encrypted with AES-GCM
-type encryptedPayload struct {
-	Key   []byte `json:"key"`
-	Nonce []byte `json:"nonce"`
-	Data  []byte `json:"data"`
-}
-
 // NewAgent creates an Agent configured with the provided client options and logger
 func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
@@ -321,7 +312,7 @@ func (a *Agent) encryptMessage(message []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	payload := encryptedPayload{
+	payload := models.EncryptedPayload{
 		Key:   encryptedKey,
 		Nonce: nonce,
 		Data:  encryptedData,
@@ -350,7 +341,7 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	if err != nil {
 		return fmt.Errorf("couldn't marshal metrics payload: %w", err)
 	}
-	a.logger.Info("sending batch payload", zap.String("payload", string(payloadBytes)))
+	a.logger.Debug("sending batch payload", zap.String("payload", string(payloadBytes)))
 
 	// payload encryption using the cert
 	if a.config.CryptoKey.BeenSet {

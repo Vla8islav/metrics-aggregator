@@ -10,14 +10,9 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/model"
 	"go.uber.org/zap"
 )
-
-type encryptedPayload struct {
-	Key   []byte `json:"key"`
-	Nonce []byte `json:"nonce"`
-	Data  []byte `json:"data"`
-}
 
 // WithEncryption returns middleware that tries to decrypt the message when the key isn't empty
 func WithEncryption(privateKey *rsa.PrivateKey, logger *zap.Logger) Middleware {
@@ -46,7 +41,7 @@ func handleInboundEncryption(r *http.Request, privateKey *rsa.PrivateKey) ([]byt
 		return nil, err
 	}
 
-	var payload encryptedPayload
+	var payload models.EncryptedPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, err
 	}

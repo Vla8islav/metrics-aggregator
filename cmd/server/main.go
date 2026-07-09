@@ -26,10 +26,6 @@ func main() {
 
 	printBuildInfo()
 
-	//< for testing only, delete in prod
-	//runtime.SetBlockProfileRate(1)
-	//runtime.SetMutexProfileFraction(1)
-
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("failed to initialize logger: %v", err)
@@ -103,7 +99,6 @@ func main() {
 		WriteTimeout: 5 * time.Second,
 	}
 
-	go func() { log.Println(http.ListenAndServe("localhost:6060", nil)) }()
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- srvImpl.ListenAndServe()
