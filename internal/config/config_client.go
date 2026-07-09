@@ -279,7 +279,9 @@ func getOptionsClient(args []string) (*OptionsClient, error) {
 	fs.Var(&opt.RateLimit, "l", "потолок одновременных запросов делается к серверу, RATE_LIMIT")
 
 	fs.Var(&opt.CryptoKey, "crypto-key", "путь до файла с публичным ключом")
+	
 	fs.Var(&opt.Config, "config", "путь до файла с конфигурацией приложения")
+	fs.Var(&opt.Config, "c", "путь до файла с конфигурацией приложения")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err

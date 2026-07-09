@@ -373,6 +373,9 @@ func getOptionsServer(args []string) (*OptionsServer, error) {
 
 	fs.Var(&opt.CryptoKey, "crypto-key", "путь до файла с приватным ключом")
 
+	fs.Var(&opt.Config, "config", "путь до файла с конфигурацией приложения")
+	fs.Var(&opt.Config, "c", "путь до файла с конфигурацией приложения")
+
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
