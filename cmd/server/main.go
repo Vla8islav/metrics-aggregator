@@ -70,6 +70,7 @@ func main() {
 		r,
 		middlewares.WithLogging(logger),
 		middlewares.WithAudit(publisher),
+		middlewares.WithIpChecker(currentConfig.TrustedSubnet, logger),
 	)
 
 	if currentConfig.SecretKey.BeenSet {
