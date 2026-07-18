@@ -224,6 +224,12 @@ func (a *Agent) send(ctx context.Context, metricType models.MetricType, metricNa
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
+	//Добавьте в запрос агента заголовок X-Real-IP, в котором должен содержаться IP-адрес хоста агента.
+	interfaceAddr, err := helpers.GetInterfaceAddr()
+	if err != nil {
+		return err
+	}
+	req.Header.Set("X-Real-IP", interfaceAddr)
 
 	resp, err := a.client.Do(req)
 	if err != nil {
@@ -365,6 +371,13 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
+
+	interfaceAddr, err := helpers.GetInterfaceAddr()
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("X-Real-IP", interfaceAddr)
 	signatureHeaderValue := a.getSignatureHeaderValue(payloadBytes)
 	req.Header.Set(helpers.ShaSimpleSignatureHeader, signatureHeaderValue)
 
