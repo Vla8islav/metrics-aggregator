@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/caarlos0/env/v6"
 )
 
@@ -227,7 +228,7 @@ func logConfigOptions(options *OptionsServer) {
 //
 // Returns the final merged server options, using defaults first, command-line flags second,
 // and environment variables last.
-func ReadFlagsServer(args []string) *OptionsServer {
+func ReadFlagsServer(args []string) (*OptionsServer, error) {
 	cmdOptions, err := getOptionsServer(args)
 	if err != nil {
 		log.Fatalln(err)
@@ -275,8 +276,25 @@ func ReadFlagsServer(args []string) *OptionsServer {
 	mergeOptionsServer(&finalOptions, *cmdOptions)
 	mergeOptionsServer(&finalOptions, *envOptions)
 
+	if err = sanityCheckConfig(&finalOptions); err != nil {
+		return nil, err
+	}
+
 	//setOptionsTrue(&finalOptions)
-	return &finalOptions
+	return &finalOptions, nil
+}
+
+func sanityCheckConfig(optionsSrv *OptionsServer) error {
+	if optionsSrv == nil {
+		return fmt.Errorf("optionsSrv is nil")
+	}
+
+	if !optionsSrv.TrustedSubnet.BeenSet {
+		return nil
+	}
+
+	return helpers.ValidateMaskCIDR(optionsSrv.TrustedSubnet.Value)
+
 }
 
 func getDiskConfigOptions(filename string) (OptionsServer, error) {
@@ -395,7 +413,7 @@ func getOptionsServer(args []string) (*OptionsServer, error) {
 	fs.Var(&opt.Config, "config", "путь до файла с конфигурацией приложения")
 	fs.Var(&opt.Config, "c", "путь до файла с конфигурацией приложения")
 
-	fs.Var(&opt.Config, "t", "CIDR допустимых подсетей")
+	fs.Var(&opt.TrustedSubnet, "t", "CIDR допустимых подсетей")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err

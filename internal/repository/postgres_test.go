@@ -43,7 +43,11 @@ func getTestStorage(t *testing.T) *PostgresStorage {
 		log.Fatalf("failed to get connection string: %v", err)
 	}
 
-	cfg := config.ReadFlagsServer([]string{})
+	cfg, err := config.ReadFlagsServer([]string{})
+	if err != nil {
+		log.Fatalf("failed to read config: %v", err)
+	}
+
 	cfg.DatabaseDSN.Value = dsn
 	cfg.DatabaseDSN.BeenSet = true
 

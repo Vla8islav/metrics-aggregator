@@ -32,7 +32,10 @@ func main() {
 	}
 	defer logger.Sync() // flushes buffer, if any
 
-	currentConfig := config.ReadFlagsServer(os.Args[1:])
+	currentConfig, err := config.ReadFlagsServer(os.Args[1:])
+	if err != nil {
+		logger.Fatal("failed to read config", zap.Error(err))
+	}
 	logger.Info("starting server ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	var db domain.MetricRepository
