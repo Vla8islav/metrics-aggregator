@@ -4,10 +4,18 @@ package agent
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"sync"
 	"time"
@@ -69,16 +77,21 @@ func (a *Agent) Start(ctx context.Context) {
 	jobs := make(chan job, a.rateLimit)
 	results := make(chan result)
 
-	var wg sync.WaitGroup
+	var workersWG sync.WaitGroup
 	for i := 1; i <= a.rateLimit; i++ {
-		wg.Add(1)
-		go a.workerReport(ctx, i, jobs, results, &wg)
+		workersWG.Add(1)
+		go a.workerReport(ctx, i, jobs, results, &workersWG)
 	}
 
+	var resultsWG sync.WaitGroup
+	resultsWG.Add(1)
+
 	go func() {
-		wg.Wait()
-		close(results)
+		defer resultsWG.Done()
+		a.runMetricsGatherer(ctx)
 	}()
+
+	resultsDone := make(chan struct{})
 
 	go func() {
 		for res := range results {
@@ -86,11 +99,17 @@ func (a *Agent) Start(ctx context.Context) {
 				a.logger.Warn("report job failed", zap.Int("jobID", res.JobID), zap.Error(res.Err))
 			}
 		}
+		close(resultsDone)
 	}()
 
-	go a.runMetricsGatherer(ctx)
-
 	a.runReporter(ctx, jobs)
+
+	close(jobs)
+
+	workersWG.Wait()
+	close(results)
+	<-resultsDone
+	resultsWG.Wait()
 }
 
 // runMetricsGatherer periodically refreshes the agent's in-memory metric values
@@ -133,10 +152,15 @@ func (a *Agent) workerReport(ctx context.Context, id int, jobs <-chan job, resul
 		if err == nil {
 			a.logger.Debug("report job finished", zap.Int("worker", id), zap.Int("jobID", j.ID))
 		}
-		results <- result{
+		select {
+		case <-ctx.Done():
+			return
+
+		case results <- result{
 			JobID: j.ID,
 			Value: fmt.Sprintf("workerReport %d processed j %d", id, j.ID),
 			Err:   err,
+		}: // empty
 		}
 	}
 }
@@ -222,6 +246,81 @@ func (a *Agent) getSignatureHeaderValue(payloadBytes []byte) string {
 	return helpers.Sha256WithKeyHex(payloadBytes, []byte(a.config.SecretKey.Value))
 }
 
+func (a *Agent) readPublicKey() (*x509.Certificate, error) {
+	if !a.config.CryptoKey.BeenSet || "" == a.config.CryptoKey.Value {
+		return nil, fmt.Errorf("crypto key wasn't set")
+	}
+
+	publicKeyPath := a.config.CryptoKey.Value
+
+	certificateBytes, err := os.ReadFile(publicKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	certificatePemBlock, _ := pem.Decode(certificateBytes)
+	if certificatePemBlock == nil {
+		return nil, errors.New("certificate not found")
+	}
+
+	certificate, err := x509.ParseCertificate(certificatePemBlock.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return certificate, nil
+}
+
+// encryptMessage encrypts the payload using hybrid encryption.
+//
+// RSA can encrypt only small messages, so the payload itself is encrypted with AES-GCM
+// The random AES key is then encrypted with the server RSA public key from the certificate
+func (a *Agent) encryptMessage(message []byte) ([]byte, error) {
+	certificate, err := a.readPublicKey()
+	if err != nil {
+		return nil, err
+	}
+
+	publicKey, ok := certificate.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("certificate public key is not RSA")
+	}
+
+	aesKey := make([]byte, 32)
+	if _, err = rand.Read(aesKey); err != nil {
+		return nil, err
+	}
+
+	block, err := aes.NewCipher(aesKey)
+	if err != nil {
+		return nil, err
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err = rand.Read(nonce); err != nil {
+		return nil, err
+	}
+
+	encryptedData := aesGCM.Seal(nil, nonce, message, nil)
+	encryptedKey, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, aesKey)
+	if err != nil {
+		return nil, err
+	}
+
+	payload := models.EncryptedPayload{
+		Key:   encryptedKey,
+		Nonce: nonce,
+		Data:  encryptedData,
+	}
+
+	return json.Marshal(payload)
+}
+
 // sendBatch sends a gzip-compressed and signed metrics batch to the server
 func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	if metrics == nil {
@@ -242,7 +341,15 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	if err != nil {
 		return fmt.Errorf("couldn't marshal metrics payload: %w", err)
 	}
-	a.logger.Info("sending batch payload", zap.String("payload", string(payloadBytes)))
+	a.logger.Debug("sending batch payload", zap.String("payload", string(payloadBytes)))
+
+	// payload encryption using the cert
+	if a.config.CryptoKey.BeenSet {
+		payloadBytes, err = a.encryptMessage(payloadBytes)
+		if err != nil {
+			return fmt.Errorf("couldn't encrypt the payload %w", err)
+		}
+	}
 
 	payloadBytesCompressed, err := helpers.GzipCompress(payloadBytes)
 	if err != nil {

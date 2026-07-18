@@ -2,10 +2,12 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -14,12 +16,15 @@ import (
 // OptionsClient configuration parameters for the metrics agent client
 // the order of precedence: env, command line, default value
 type OptionsClient struct {
-	ServerAddress  OptionalString          `env:"ADDRESS"`
-	PollInterval   OptionalSecondsDuration `env:"POLL_INTERVAL"`
-	ReportInterval OptionalSecondsDuration `env:"REPORT_INTERVAL"`
-	RateLimit      OptionalInt             `env:"RATE_LIMIT"`
+	ServerAddress  OptionalString          `env:"ADDRESS" json:"address"`
+	PollInterval   OptionalSecondsDuration `env:"POLL_INTERVAL" json:"poll_interval"`
+	ReportInterval OptionalSecondsDuration `env:"REPORT_INTERVAL" json:"report_interval"`
+	RateLimit      OptionalInt             `env:"RATE_LIMIT" json:"rate_limit"`
+	CryptoKey      OptionalString          `env:"CRYPTO_KEY" json:"crypto_key"`
 
-	SecretKey OptionalString `env:"KEY"`
+	SecretKey OptionalString `env:"KEY" json:"secret_key"`
+
+	Config OptionalString `env:"CONFIG" json:"-"`
 }
 
 func logSetFlagsClient(options *OptionsClient) {
@@ -46,6 +51,14 @@ func logSetFlagsClient(options *OptionsClient) {
 
 	if options.RateLimit.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("-l=%d", options.RateLimit.Value))
+	}
+
+	if options.CryptoKey.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-crypto-key=%s", options.CryptoKey.Value))
+	}
+
+	if options.Config.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-config=%s", options.Config.Value))
 	}
 
 	if len(setFlags) == 0 {
@@ -77,11 +90,19 @@ func logSetEnvClient(options *OptionsClient) {
 	}
 
 	if options.SecretKey.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("SECRET_KEY=%s", options.SecretKey.Value))
+		setEnv = append(setEnv, fmt.Sprintf("KEY=%s", options.SecretKey.Value))
 	}
 
 	if options.RateLimit.BeenSet {
 		setEnv = append(setEnv, fmt.Sprintf("RATE_LIMIT=%d", options.RateLimit.Value))
+	}
+
+	if options.CryptoKey.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("CRYPTO_KEY=%s", options.CryptoKey.Value))
+	}
+
+	if options.Config.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("CONFIG=%s", options.Config.Value))
 	}
 
 	if len(setEnv) == 0 {
@@ -91,6 +112,46 @@ func logSetEnvClient(options *OptionsClient) {
 
 	for _, envValue := range setEnv {
 		log.Printf("environment variable set: %s", envValue)
+	}
+}
+
+func logConfigOptionsClient(options *OptionsClient) {
+	if options == nil {
+		return
+	}
+	var setOptions []string
+
+	if options.ServerAddress.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("address=%s", options.ServerAddress.Value))
+	}
+
+	if options.PollInterval.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("poll_interval=%s", options.PollInterval.Duration))
+	}
+
+	if options.ReportInterval.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("report_interval=%s", options.ReportInterval.Duration))
+	}
+
+	if options.RateLimit.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("rate_limit=%d", options.RateLimit.Value))
+	}
+
+	if options.SecretKey.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("secret_key=%s", options.SecretKey.Value))
+	}
+
+	if options.CryptoKey.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("crypto_key=%s", options.CryptoKey.Value))
+	}
+
+	if len(setOptions) == 0 {
+		log.Println("no config file options were set")
+		return
+	}
+
+	for _, optionValue := range setOptions {
+		log.Printf("config file option set: %s", optionValue)
 	}
 }
 
@@ -105,20 +166,57 @@ func ReadFlagsClient(args []string) *OptionsClient {
 	envOptions := getEnvOptionsClient()
 	logSetEnvClient(envOptions)
 
+	var diskConfigOptions OptionsClient
+	if cmdOptions.Config.BeenSet || envOptions.Config.BeenSet {
+		// we need to read the config file before assembling the full consensus
+		var configFilename string
+		if cmdOptions.Config.BeenSet && cmdOptions.Config.Value != "" {
+			configFilename = cmdOptions.Config.Value
+		} else if envOptions.Config.BeenSet && envOptions.Config.Value != "" {
+			configFilename = envOptions.Config.Value
+		}
+		diskConfigOptions, err = getDiskConfigOptionsClient(configFilename)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		logConfigOptionsClient(&diskConfigOptions)
+	}
+
 	finalOptions := OptionsClient{
 		ServerAddress:  OptionalString{Value: "localhost:8080", BeenSet: false},
 		PollInterval:   OptionalSecondsDuration{Duration: time.Second * 2, BeenSet: false},
 		ReportInterval: OptionalSecondsDuration{Duration: time.Second * 10, BeenSet: false},
 		SecretKey:      OptionalString{Value: "", BeenSet: false},
 		RateLimit:      OptionalInt{Value: 10, BeenSet: false},
+		CryptoKey:      OptionalString{Value: "", BeenSet: false},
+		Config:         OptionalString{Value: "", BeenSet: false},
 	}
 
-	// env options are the priority
+	// env options are the priority, then cmd options, then disk options
+	mergeOptionsClient(&finalOptions, diskConfigOptions)
 	mergeOptionsClient(&finalOptions, *cmdOptions)
 	mergeOptionsClient(&finalOptions, *envOptions)
 
 	//setOptionsTrue(&finalOptions)
 	return &finalOptions
+}
+
+func getDiskConfigOptionsClient(filename string) (OptionsClient, error) {
+	if filename == "" {
+		return OptionsClient{}, nil
+	}
+
+	configBytes, err := os.ReadFile(filename)
+	if err != nil {
+		return OptionsClient{}, err
+	}
+
+	var options OptionsClient
+	if err = json.Unmarshal(configBytes, &options); err != nil {
+		return OptionsClient{}, err
+	}
+
+	return options, nil
 }
 
 func mergeOptionsClient(mergeInto *OptionsClient, newValues OptionsClient) {
@@ -146,6 +244,16 @@ func mergeOptionsClient(mergeInto *OptionsClient, newValues OptionsClient) {
 		mergeInto.RateLimit = newValues.RateLimit
 		mergeInto.RateLimit.BeenSet = true
 	}
+
+	if newValues.CryptoKey.BeenSet {
+		mergeInto.CryptoKey = newValues.CryptoKey
+		mergeInto.CryptoKey.BeenSet = true
+	}
+
+	if newValues.Config.BeenSet {
+		mergeInto.Config = newValues.Config
+		mergeInto.Config.BeenSet = true
+	}
 }
 
 func getEnvOptionsClient() *OptionsClient {
@@ -167,10 +275,13 @@ func getOptionsClient(args []string) (*OptionsClient, error) {
 	fs.Var(&opt.ServerAddress, "a", "port on which the server should run")
 	fs.Var(&opt.ReportInterval, "r", "how often console utility should send metrics")
 	fs.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")
-
 	fs.Var(&opt.SecretKey, "k", "симметричный ключ шифрования для подписи сообщений")
-
 	fs.Var(&opt.RateLimit, "l", "потолок одновременных запросов делается к серверу, RATE_LIMIT")
+
+	fs.Var(&opt.CryptoKey, "crypto-key", "путь до файла с публичным ключом")
+	
+	fs.Var(&opt.Config, "config", "путь до файла с конфигурацией приложения")
+	fs.Var(&opt.Config, "c", "путь до файла с конфигурацией приложения")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err

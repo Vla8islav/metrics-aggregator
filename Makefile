@@ -43,5 +43,8 @@ db-status: db-start
 generate:
 	go generate ./internal/mocks
 
+cert-gen:
+	go run ./cmd/generate_certs
+
 static-lint:
 	go run ./cmd/staticlint ./...

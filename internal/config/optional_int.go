@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 )
@@ -35,6 +36,18 @@ func (b *OptionalInt) UnmarshalText(text []byte) error {
 		return fmt.Errorf("cannot convert string to int: %w", err)
 	}
 	b.Value = result
+	b.BeenSet = true
+	return nil
+}
+
+// UnmarshalJSON stores a JSON int as an int and marks the value as explicitly set
+func (b *OptionalInt) UnmarshalJSON(data []byte) error {
+	var value int
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+
+	b.Value = value
 	b.BeenSet = true
 	return nil
 }

@@ -2,8 +2,10 @@ package config
 
 import (
 	"encoding"
+	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -50,4 +52,27 @@ func (d *OptionalSecondsDuration) Set(value string) error {
 // UnmarshalText parses text as a Go duration string or as a number of seconds
 func (d *OptionalSecondsDuration) UnmarshalText(text []byte) error {
 	return d.Set(string(text))
+}
+
+func (d *OptionalSecondsDuration) UnmarshalJSON(data []byte) error {
+	var seconds int
+	if err := json.Unmarshal(data, &seconds); err == nil {
+		d.Duration = time.Duration(absInt(seconds)) * time.Second
+		d.BeenSet = true
+		return nil
+	}
+
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+
+	value = strings.TrimSpace(value)
+	if value == "" {
+		d.Duration = 0
+		d.BeenSet = true
+		return nil
+	}
+
+	return d.Set(value)
 }

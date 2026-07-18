@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/agent"
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
@@ -21,16 +23,25 @@ func main() {
 
 	currentConfig := config.ReadFlagsClient(os.Args[1:])
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	defer stop()
 
 	ag := agent.NewAgent(currentConfig, logger)
 
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
 	reportInterval := currentConfig.ReportInterval.Duration
-	log.Printf("agent started: metric_poll=%s report=%s server=%s secret_is_set=%v",
-		pollInterval, reportInterval, serverAddr, currentConfig.SecretKey.BeenSet)
-	ag.Start(ctx)
 
+	logger.Info("agent started",
+		zap.Duration("metric_poll", pollInterval),
+		zap.Duration("report", reportInterval),
+		zap.String("server", serverAddr),
+		zap.Bool("crypto_key_is_set", currentConfig.CryptoKey.BeenSet),
+		zap.Bool("secret_is_set", currentConfig.SecretKey.BeenSet),
+	)
+
+	ag.Start(ctx)
+	logger.Info("shutdown signal recieved")
+	stop()
+	logger.Info("agent stopped")
 }
