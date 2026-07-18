@@ -28,8 +28,9 @@ type OptionsServer struct {
 	AuditURL  OptionalString `env:"AUDIT_URL" json:"audit_url"`
 	AuditFile OptionalString `env:"AUDIT_FILE" json:"audit_file"`
 
-	SecretKey OptionalString `env:"KEY" json:"secret_key"`
-	CryptoKey OptionalString `env:"CRYPTO_KEY" json:"crypto_key"`
+	SecretKey     OptionalString `env:"KEY" json:"secret_key"`
+	CryptoKey     OptionalString `env:"CRYPTO_KEY" json:"crypto_key"`
+	TrustedSubnet OptionalString `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
 
 	Config OptionalString `env:"CONFIG" json:"-"`
 }
@@ -82,6 +83,10 @@ func logSetFlagsServer(options *OptionsServer) {
 
 	if options.Config.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("-config=%s", options.Config.Value))
+	}
+
+	if options.TrustedSubnet.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-trusted-subnet=%s", options.TrustedSubnet.Value))
 	}
 
 	if len(setFlags) == 0 {
@@ -144,6 +149,10 @@ func logSetEnvServer(options *OptionsServer) {
 		setEnv = append(setEnv, fmt.Sprintf("CONFIG=%s", options.Config.Value))
 	}
 
+	if options.TrustedSubnet.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("TRUSTED_SUBNET=%s", options.TrustedSubnet.Value))
+	}
+
 	if len(setEnv) == 0 {
 		log.Println("no environment variables were set")
 		return
@@ -200,6 +209,10 @@ func logConfigOptions(options *OptionsServer) {
 		setOptions = append(setOptions, fmt.Sprintf("crypto_key=%s", options.CryptoKey.Value))
 	}
 
+	if options.TrustedSubnet.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("trusted_subnet=%s", options.TrustedSubnet.Value))
+	}
+
 	if len(setOptions) == 0 {
 		log.Println("no config file options were set")
 		return
@@ -252,6 +265,7 @@ func ReadFlagsServer(args []string) *OptionsServer {
 		AuditFile:        OptionalString{Value: "", BeenSet: false},
 		AuditURL:         OptionalString{Value: "", BeenSet: false},
 		CryptoKey:        OptionalString{Value: "", BeenSet: false},
+		TrustedSubnet:    OptionalString{Value: "", BeenSet: false},
 
 		Config: OptionalString{Value: "", BeenSet: false},
 	}
@@ -334,6 +348,11 @@ func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 		mergeInto.CryptoKey.BeenSet = true
 	}
 
+	if newValues.TrustedSubnet.BeenSet {
+		mergeInto.TrustedSubnet = newValues.TrustedSubnet
+		mergeInto.TrustedSubnet.BeenSet = true
+	}
+
 	if newValues.Config.BeenSet {
 		mergeInto.Config = newValues.Config
 		mergeInto.Config.BeenSet = true
@@ -375,6 +394,8 @@ func getOptionsServer(args []string) (*OptionsServer, error) {
 
 	fs.Var(&opt.Config, "config", "путь до файла с конфигурацией приложения")
 	fs.Var(&opt.Config, "c", "путь до файла с конфигурацией приложения")
+
+	fs.Var(&opt.Config, "t", "CIDR допустимых подсетей")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err
