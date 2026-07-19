@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,11 +14,14 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/audit"
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/domain"
+	"github.com/Vla8islav/metrics-aggregator/internal/grpcserver"
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/Vla8islav/metrics-aggregator/internal/middlewares"
+	"github.com/Vla8islav/metrics-aggregator/internal/proto"
 	"github.com/Vla8islav/metrics-aggregator/internal/service"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 
 	_ "net/http/pprof"
 )
@@ -48,6 +52,30 @@ func main() {
 	}
 
 	srvApp := service.NewMetricsService(db)
+
+	// <grpc>
+	grpcSrv := grpc.NewServer()
+	proto.RegisterMetricsServer(
+		grpcSrv,
+		grpcserver.NewGRPCServer(srvApp),
+	)
+	grpcListener, err := net.Listen(
+		"tcp",
+		":9090",
+	)
+
+	if err != nil {
+		logger.Fatal("failed to create grpc listener", zap.Error(err))
+	}
+
+	go func() {
+		logger.Info("starting grpc server")
+		if err := grpcSrv.Serve(grpcListener); err != nil {
+			logger.Error("grpc server stopped", zap.Error(err))
+		}
+	}()
+	// </grpc>
+
 	h := handler.NewHandler(srvApp, logger)
 	r := handler.NewRouter(h)
 
@@ -122,6 +150,7 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 
+	grpcSrv.GracefulStop()
 	if err = srvImpl.Shutdown(shutdownCtx); err != nil {
 		logger.Fatal("failed to shutdown server gracefully", zap.Error(err))
 	}

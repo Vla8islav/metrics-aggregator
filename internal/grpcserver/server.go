@@ -5,13 +5,15 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/proto"
 )
 
+var _ proto.MetricsServer = (*Server)(nil)
+
 type Server struct {
-	proto.MetricService
+	proto.UnimplementedMetricsServer
 
 	service domain.MetricService
 }
 
-func New(service domain.MetricService) *Server {
+func NewGRPCServer(service domain.MetricService) *Server {
 	return &Server{
 		service: service,
 	}
