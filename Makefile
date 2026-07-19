@@ -43,6 +43,12 @@ db-status: db-start
 generate:
 	go generate ./internal/mocks
 
+generate-prot:
+	protoc \
+      --go_out=paths=source_relative:. \
+      --go-grpc_out=paths=source_relative:. \
+      internal/proto/metrics.proto
+
 cert-gen:
 	go run ./cmd/generate_certs
 
