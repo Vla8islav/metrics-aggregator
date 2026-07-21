@@ -18,6 +18,7 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/Vla8islav/metrics-aggregator/internal/middlewares"
+	"github.com/Vla8islav/metrics-aggregator/internal/middlewares_grpc"
 	"github.com/Vla8islav/metrics-aggregator/internal/proto"
 	"github.com/Vla8islav/metrics-aggregator/internal/service"
 	"go.uber.org/zap"
@@ -54,7 +55,20 @@ func main() {
 	srvApp := service.NewMetricsService(db)
 
 	// <grpc>
-	grpcSrv := grpc.NewServer()
+	ipChecker, err := middlewares_grpc.WithIPChecker(
+		currentConfig.TrustedSubnet,
+		logger,
+	)
+	if err != nil {
+		logger.Fatal(
+			"failed to initialize gRPC IP checker",
+			zap.Error(err),
+		)
+	}
+
+	grpcSrv := grpc.NewServer(
+		grpc.UnaryInterceptor(ipChecker))
+
 	proto.RegisterMetricsServer(
 		grpcSrv,
 		grpcserver.NewGRPCServer(srvApp),

@@ -68,7 +68,7 @@ func (Metric_MType) EnumDescriptor() ([]byte, []int) {
 	return file_internal_proto_metrics_proto_rawDescGZIP(), []int{0, 0}
 }
 
-type MetricService struct {
+type Metric struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                                // имя метрики
 	Type  Metric_MType           `protobuf:"varint,2,opt,name=type,proto3,enum=metrics.Metric_MType" json:"type,omitempty"` // тип метрики
@@ -80,20 +80,20 @@ type MetricService struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *MetricService) Reset() {
-	*x = MetricService{}
+func (x *Metric) Reset() {
+	*x = Metric{}
 	mi := &file_internal_proto_metrics_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *MetricService) String() string {
+func (x *Metric) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*MetricService) ProtoMessage() {}
+func (*Metric) ProtoMessage() {}
 
-func (x *MetricService) ProtoReflect() protoreflect.Message {
+func (x *Metric) ProtoReflect() protoreflect.Message {
 	mi := &file_internal_proto_metrics_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -105,33 +105,33 @@ func (x *MetricService) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use MetricService.ProtoReflect.Descriptor instead.
-func (*MetricService) Descriptor() ([]byte, []int) {
+// Deprecated: Use Metric.ProtoReflect.Descriptor instead.
+func (*Metric) Descriptor() ([]byte, []int) {
 	return file_internal_proto_metrics_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *MetricService) GetId() string {
+func (x *Metric) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *MetricService) GetType() Metric_MType {
+func (x *Metric) GetType() Metric_MType {
 	if x != nil {
 		return x.Type
 	}
 	return Metric_GAUGE
 }
 
-func (x *MetricService) GetDelta() int64 {
+func (x *Metric) GetDelta() int64 {
 	if x != nil {
 		return x.Delta
 	}
 	return 0
 }
 
-func (x *MetricService) GetValue() float64 {
+func (x *Metric) GetValue() float64 {
 	if x != nil {
 		return x.Value
 	}
@@ -141,7 +141,7 @@ func (x *MetricService) GetValue() float64 {
 // UpdateMetricsRequest содержит список метрик для обновления.
 type UpdateMetricsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Metrics       []*MetricService       `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"`
+	Metrics       []*Metric              `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -176,7 +176,7 @@ func (*UpdateMetricsRequest) Descriptor() ([]byte, []int) {
 	return file_internal_proto_metrics_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *UpdateMetricsRequest) GetMetrics() []*MetricService {
+func (x *UpdateMetricsRequest) GetMetrics() []*Metric {
 	if x != nil {
 		return x.Metrics
 	}
@@ -227,7 +227,7 @@ const file_internal_proto_metrics_proto_rawDesc = "" +
 	"\x1cinternal/proto/metrics.proto\x12\ametrics\"\x90\x01\n" +
 	"\x06Metric\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
-	"\x04type\x18\x02 \x01(\x0e2\x15.metrics.MetricService.MTypeR\x04type\x12\x14\n" +
+	"\x04type\x18\x02 \x01(\x0e2\x15.metrics.Metric.MTypeR\x04type\x12\x14\n" +
 	"\x05delta\x18\x03 \x01(\x03R\x05delta\x12\x14\n" +
 	"\x05value\x18\x04 \x01(\x01R\x05value\"\x1f\n" +
 	"\x05MType\x12\t\n" +
@@ -254,14 +254,14 @@ func file_internal_proto_metrics_proto_rawDescGZIP() []byte {
 var file_internal_proto_metrics_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_internal_proto_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_internal_proto_metrics_proto_goTypes = []any{
-	(Metric_MType)(0),             // 0: metrics.MetricService.MType
-	(*MetricService)(nil),         // 1: metrics.MetricService
+	(Metric_MType)(0),             // 0: metrics.Metric.MType
+	(*Metric)(nil),                // 1: metrics.Metric
 	(*UpdateMetricsRequest)(nil),  // 2: metrics.UpdateMetricsRequest
 	(*UpdateMetricsResponse)(nil), // 3: metrics.UpdateMetricsResponse
 }
 var file_internal_proto_metrics_proto_depIdxs = []int32{
-	0, // 0: metrics.MetricService.type:type_name -> metrics.MetricService.MType
-	1, // 1: metrics.UpdateMetricsRequest.metrics:type_name -> metrics.MetricService
+	0, // 0: metrics.Metric.type:type_name -> metrics.Metric.MType
+	1, // 1: metrics.UpdateMetricsRequest.metrics:type_name -> metrics.Metric
 	2, // 2: metrics.Metrics.UpdateMetrics:input_type -> metrics.UpdateMetricsRequest
 	3, // 3: metrics.Metrics.UpdateMetrics:output_type -> metrics.UpdateMetricsResponse
 	3, // [3:4] is the sub-list for method output_type
