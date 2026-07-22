@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"go.uber.org/zap"
@@ -16,22 +17,32 @@ import (
 // WithIPChecker creates a unary gRPC interceptor that allows requests only
 // from addresses belonging to trustedSubnet, for example 192.168.1.0/24.
 func WithIPChecker(
-	subnet config.OptionalString,
+	subnets config.OptionalString,
 	logger *zap.Logger,
 ) (grpc.UnaryServerInterceptor, error) {
-	if !subnet.BeenSet {
+	if !subnets.BeenSet {
 		return nil, fmt.Errorf(
-			"trusted subnet is not set",
+			"trusted subnets is not set",
 		)
 	}
 
-	_, network, err := net.ParseCIDR(subnet.Value)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"parse trusted subnet %q: %w",
-			subnet,
-			err,
-		)
+	if strings.TrimSpace(subnets.Value) == "" {
+		return nil, fmt.Errorf("trusted subnets is empty")
+	}
+
+	var networks []*net.IPNet
+
+	for _, rawSubnet := range strings.Split(subnets.Value, ",") {
+		subnet := strings.TrimSpace(rawSubnet)
+		_, network, err := net.ParseCIDR(subnet)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"parse trusted subnet fauled %q: %w",
+				subnet,
+				err,
+			)
+		}
+		networks = append(networks, network)
 	}
 
 	return func(
@@ -54,21 +65,24 @@ func WithIPChecker(
 			)
 		}
 
-		if !network.Contains(clientIP) {
-			logger.Warn(
-				"gRPC request rejected: IP is outside trusted subnet",
-				zap.String("method", info.FullMethod),
-				zap.String("client_ip", clientIP.String()),
-				zap.String("trusted_subnet", network.String()),
-			)
-
-			return nil, status.Error(
-				codes.PermissionDenied,
-				"client IP is outside the trusted subnet",
-			)
+		for _, network := range networks {
+			if network.Contains(clientIP) {
+				return handler(ctx, req)
+			}
 		}
 
-		return handler(ctx, req)
+		logger.Warn(
+			"gRPC request rejected: IP is outside trusted subnets",
+			zap.String("method", info.FullMethod),
+			zap.String("client_ip", clientIP.String()),
+			zap.String("trusted_subnets", subnets.Value),
+		)
+
+		return nil, status.Error(
+			codes.PermissionDenied,
+			"client IP is outside the trusted subnets",
+		)
+
 	}, nil
 }
 

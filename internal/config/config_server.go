@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
@@ -30,9 +31,10 @@ type OptionsServer struct {
 	AuditURL  OptionalString `env:"AUDIT_URL" json:"audit_url"`
 	AuditFile OptionalString `env:"AUDIT_FILE" json:"audit_file"`
 
-	SecretKey     OptionalString `env:"KEY" json:"secret_key"`
-	CryptoKey     OptionalString `env:"CRYPTO_KEY" json:"crypto_key"`
-	TrustedSubnet OptionalString `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
+	SecretKey OptionalString `env:"KEY" json:"secret_key"`
+	CryptoKey OptionalString `env:"CRYPTO_KEY" json:"crypto_key"`
+	// CIDR subnets, comma-separated like 192.168.0.0/24,10.0.0.0/8
+	TrustedSubnets OptionalString `env:"TRUSTED_SUBNETS" json:"trusted_subnets"`
 
 	Config OptionalString `env:"CONFIG" json:"-"`
 }
@@ -87,8 +89,8 @@ func logSetFlagsServer(options *OptionsServer) {
 		setFlags = append(setFlags, fmt.Sprintf("-config=%s", options.Config.Value))
 	}
 
-	if options.TrustedSubnet.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-trusted-subnet=%s", options.TrustedSubnet.Value))
+	if options.TrustedSubnets.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-trusted-subnets=%s", options.TrustedSubnets.Value))
 	}
 
 	if options.ServerAddressGRPC.BeenSet {
@@ -155,8 +157,8 @@ func logSetEnvServer(options *OptionsServer) {
 		setEnv = append(setEnv, fmt.Sprintf("CONFIG=%s", options.Config.Value))
 	}
 
-	if options.TrustedSubnet.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("TRUSTED_SUBNET=%s", options.TrustedSubnet.Value))
+	if options.TrustedSubnets.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("TRUSTED_SUBNETS=%s", options.TrustedSubnets.Value))
 	}
 
 	if options.ServerAddressGRPC.BeenSet {
@@ -219,8 +221,8 @@ func logConfigOptions(options *OptionsServer) {
 		setOptions = append(setOptions, fmt.Sprintf("crypto_key=%s", options.CryptoKey.Value))
 	}
 
-	if options.TrustedSubnet.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("trusted_subnet=%s", options.TrustedSubnet.Value))
+	if options.TrustedSubnets.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("trusted_subnets=%s", options.TrustedSubnets.Value))
 	}
 
 	if options.ServerAddressGRPC.BeenSet {
@@ -281,7 +283,7 @@ func ReadFlagsServer(args []string) (*OptionsServer, error) {
 		AuditFile:        OptionalString{Value: "", BeenSet: false},
 		AuditURL:         OptionalString{Value: "", BeenSet: false},
 		CryptoKey:        OptionalString{Value: "", BeenSet: false},
-		TrustedSubnet:    OptionalString{Value: "", BeenSet: false},
+		TrustedSubnets:   OptionalString{Value: "", BeenSet: false},
 
 		Config: OptionalString{Value: "", BeenSet: false},
 	}
@@ -304,11 +306,20 @@ func sanityCheckConfig(optionsSrv *OptionsServer) error {
 		return fmt.Errorf("optionsSrv is nil")
 	}
 
-	if !optionsSrv.TrustedSubnet.BeenSet {
+	if !optionsSrv.TrustedSubnets.BeenSet {
 		return nil
 	}
 
-	return helpers.ValidateMaskCIDR(optionsSrv.TrustedSubnet.Value)
+	for _, rawSubnet := range strings.Split(optionsSrv.TrustedSubnets.Value, ",") {
+		subnet := strings.TrimSpace(rawSubnet)
+		subnetErr := helpers.ValidateMaskCIDR(subnet)
+
+		if subnetErr != nil {
+			return fmt.Errorf("invalid subnet: %s %w", subnet, subnetErr)
+		}
+	}
+
+	return nil
 
 }
 
@@ -381,9 +392,9 @@ func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 		mergeInto.CryptoKey.BeenSet = true
 	}
 
-	if newValues.TrustedSubnet.BeenSet {
-		mergeInto.TrustedSubnet = newValues.TrustedSubnet
-		mergeInto.TrustedSubnet.BeenSet = true
+	if newValues.TrustedSubnets.BeenSet {
+		mergeInto.TrustedSubnets = newValues.TrustedSubnets
+		mergeInto.TrustedSubnets.BeenSet = true
 	}
 
 	if newValues.Config.BeenSet {
@@ -434,7 +445,7 @@ func getOptionsServer(args []string) (*OptionsServer, error) {
 	fs.Var(&opt.Config, "config", "путь до файла с конфигурацией приложения")
 	fs.Var(&opt.Config, "c", "путь до файла с конфигурацией приложения")
 
-	fs.Var(&opt.TrustedSubnet, "t", "CIDR допустимых подсетей")
+	fs.Var(&opt.TrustedSubnets, "t", "CIDR допустимых подсетей разделенный запятой")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err

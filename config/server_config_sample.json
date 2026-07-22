@@ -5,5 +5,5 @@
   "store_interval": "1s",
   "store_file": "/tmp/file.db",
   "crypto_key": "/Users/vla8islav/private-cert-metrics.pem",
-  "trusted_subnet" : "192.168.88.0/24"
+  "trusted_subnets" : "192.168.88.0/24,127.0.0.1/32"
 }

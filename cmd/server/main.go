@@ -56,7 +56,7 @@ func main() {
 
 	// <grpc>
 	ipChecker, err := middlewares_grpc.WithIPChecker(
-		currentConfig.TrustedSubnet,
+		currentConfig.TrustedSubnets,
 		logger,
 	)
 	if err != nil {
@@ -112,7 +112,7 @@ func main() {
 		r,
 		middlewares.WithLogging(logger),
 		middlewares.WithAudit(publisher),
-		middlewares.WithIpChecker(currentConfig.TrustedSubnet, logger),
+		middlewares.WithIpChecker(currentConfig.TrustedSubnets, logger),
 	)
 
 	if currentConfig.SecretKey.BeenSet {

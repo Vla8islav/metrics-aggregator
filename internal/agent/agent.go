@@ -196,7 +196,7 @@ func (a *Agent) report(ctx context.Context) error {
 		payload = append(payload, models.Metrics{MType: models.Counter, ID: name, Delta: &value})
 	}
 
-	err := a.sendBatch(ctx, payload)
+	err := a.sendBatchGRPC(ctx, payload)
 	if err != nil {
 		return err
 	}
