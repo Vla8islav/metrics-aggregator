@@ -67,7 +67,9 @@ func main() {
 	}
 
 	grpcSrv := grpc.NewServer(
-		grpc.UnaryInterceptor(ipChecker))
+		grpc.ChainUnaryInterceptor(middlewares_grpc.WithLogging(logger),
+			ipChecker,
+		))
 
 	proto.RegisterMetricsServer(
 		grpcSrv,
