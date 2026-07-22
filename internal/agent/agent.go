@@ -23,7 +23,11 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	models "github.com/Vla8islav/metrics-aggregator/internal/model"
+	"github.com/Vla8islav/metrics-aggregator/internal/proto"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 // Agent periodically collects runtime metrics and reports them to the server
@@ -38,10 +42,13 @@ type Agent struct {
 	gauges *models.Stats
 	config *config.OptionsClient
 	logger *zap.Logger
+
+	grpcConn   *grpc.ClientConn
+	grpcClient proto.MetricsClient
 }
 
 // NewAgent creates an Agent configured with the provided client options and logger
-func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
+func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) (*Agent, error) {
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
 	reportInterval := currentConfig.ReportInterval.Duration
@@ -53,6 +60,15 @@ func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
 	s := models.NewStats()
 	retryClient := helpers.NewHTTPRetryClient(helpers.DefaultShouldRetryStatus,
 		5*time.Second, 2)
+
+	grpcConn, err := grpc.NewClient(
+		currentConfig.ServerAddress.Value,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create gRPC client: %w", err)
+	}
+
 	return &Agent{
 		client:         retryClient,
 		serverAddr:     serverAddr,
@@ -62,7 +78,9 @@ func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
 		config:         currentConfig,
 		logger:         logger,
 		rateLimit:      rateLimit,
-	}
+		grpcConn:       grpcConn,
+		grpcClient:     proto.NewMetricsClient(grpcConn),
+	}, nil
 }
 
 // Start begins metric collection and reporting until ctx is canceled
@@ -411,4 +429,95 @@ func (a *Agent) runReporter(ctx context.Context, jobs chan<- job) {
 			}
 		}
 	}
+}
+
+// sendBatchGRPC sends a batch of metrics through the gRPC API.
+func (a *Agent) sendBatchGRPC(
+	ctx context.Context,
+	metrics []models.Metrics,
+) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+
+	protoMetrics := make([]*proto.Metric, 0, len(metrics))
+
+	for i := range metrics {
+		metric, err := metricToProto(metrics[i])
+		if err != nil {
+			return fmt.Errorf(
+				"convert metric at index %d: %w",
+				i,
+				err,
+			)
+		}
+		protoMetrics = append(protoMetrics, metric)
+	}
+
+	interfaceAddr, err := helpers.GetInterfaceAddr()
+	if err != nil {
+		return fmt.Errorf("get agent IP address: %w", err)
+	}
+
+	ctx = metadata.AppendToOutgoingContext(
+		ctx,
+		"x-real-ip",
+		interfaceAddr,
+	)
+
+	_, err = a.grpcClient.UpdateMetrics(
+		ctx,
+		&proto.UpdateMetricsRequest{
+			Metrics: protoMetrics,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("update metrics through gRPC: %w", err)
+	}
+
+	a.logger.Debug(
+		"gRPC metrics batch sent",
+		zap.Int("metricsCount", len(protoMetrics)),
+	)
+
+	return nil
+}
+
+func metricToProto(metric models.Metrics) (*proto.Metric, error) {
+	resultProto := &proto.Metric{
+		Id: metric.ID,
+	}
+
+	switch metric.MType {
+	case models.Gauge:
+		if metric.Value == nil {
+			return nil, fmt.Errorf(
+				"gauge metric %q has nil value",
+				metric.ID,
+			)
+		}
+
+		resultProto.Type = proto.Metric_GAUGE
+		resultProto.Value = *metric.Value
+
+	case models.Counter:
+		if metric.Delta == nil {
+			return nil, fmt.Errorf(
+				"counter metric %q has nil delta",
+				metric.ID,
+			)
+		}
+
+		resultProto.Type = proto.Metric_COUNTER
+		resultProto.Delta = *metric.Delta
+
+	default:
+		return nil, fmt.Errorf(
+			"metric %q has unsupported type %q",
+			metric.ID,
+			metric.MType,
+		)
+	}
+
+	return resultProto, nil
 }

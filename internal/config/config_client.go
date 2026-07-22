@@ -16,11 +16,12 @@ import (
 // OptionsClient configuration parameters for the metrics agent client
 // the order of precedence: env, command line, default value
 type OptionsClient struct {
-	ServerAddress  OptionalString          `env:"ADDRESS" json:"address"`
-	PollInterval   OptionalSecondsDuration `env:"POLL_INTERVAL" json:"poll_interval"`
-	ReportInterval OptionalSecondsDuration `env:"REPORT_INTERVAL" json:"report_interval"`
-	RateLimit      OptionalInt             `env:"RATE_LIMIT" json:"rate_limit"`
-	CryptoKey      OptionalString          `env:"CRYPTO_KEY" json:"crypto_key"`
+	ServerAddress     OptionalString          `env:"ADDRESS" json:"address"`
+	ServerAddressGRPC OptionalString          `env:"ADDRESS_GRPC" json:"address_grpc"`
+	PollInterval      OptionalSecondsDuration `env:"POLL_INTERVAL" json:"poll_interval"`
+	ReportInterval    OptionalSecondsDuration `env:"REPORT_INTERVAL" json:"report_interval"`
+	RateLimit         OptionalInt             `env:"RATE_LIMIT" json:"rate_limit"`
+	CryptoKey         OptionalString          `env:"CRYPTO_KEY" json:"crypto_key"`
 
 	SecretKey OptionalString `env:"KEY" json:"secret_key"`
 
@@ -59,6 +60,10 @@ func logSetFlagsClient(options *OptionsClient) {
 
 	if options.Config.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("-config=%s", options.Config.Value))
+	}
+
+	if options.ServerAddressGRPC.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-address-grpc=%s", options.ServerAddressGRPC.Value))
 	}
 
 	if len(setFlags) == 0 {
@@ -105,6 +110,10 @@ func logSetEnvClient(options *OptionsClient) {
 		setEnv = append(setEnv, fmt.Sprintf("CONFIG=%s", options.Config.Value))
 	}
 
+	if options.ServerAddressGRPC.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("ADDRESS_GRPC=%s", options.ServerAddressGRPC.Value))
+	}
+
 	if len(setEnv) == 0 {
 		log.Println("no environment variables were set")
 		return
@@ -145,6 +154,10 @@ func logConfigOptionsClient(options *OptionsClient) {
 		setOptions = append(setOptions, fmt.Sprintf("crypto_key=%s", options.CryptoKey.Value))
 	}
 
+	if options.ServerAddressGRPC.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("address_grpc=%s", options.ServerAddressGRPC.Value))
+	}
+
 	if len(setOptions) == 0 {
 		log.Println("no config file options were set")
 		return
@@ -183,13 +196,14 @@ func ReadFlagsClient(args []string) *OptionsClient {
 	}
 
 	finalOptions := OptionsClient{
-		ServerAddress:  OptionalString{Value: "localhost:8080", BeenSet: false},
-		PollInterval:   OptionalSecondsDuration{Duration: time.Second * 2, BeenSet: false},
-		ReportInterval: OptionalSecondsDuration{Duration: time.Second * 10, BeenSet: false},
-		SecretKey:      OptionalString{Value: "", BeenSet: false},
-		RateLimit:      OptionalInt{Value: 10, BeenSet: false},
-		CryptoKey:      OptionalString{Value: "", BeenSet: false},
-		Config:         OptionalString{Value: "", BeenSet: false},
+		ServerAddress:     OptionalString{Value: "localhost:8080", BeenSet: false},
+		ServerAddressGRPC: OptionalString{Value: "localhost:9090", BeenSet: false},
+		PollInterval:      OptionalSecondsDuration{Duration: time.Second * 2, BeenSet: false},
+		ReportInterval:    OptionalSecondsDuration{Duration: time.Second * 10, BeenSet: false},
+		SecretKey:         OptionalString{Value: "", BeenSet: false},
+		RateLimit:         OptionalInt{Value: 10, BeenSet: false},
+		CryptoKey:         OptionalString{Value: "", BeenSet: false},
+		Config:            OptionalString{Value: "", BeenSet: false},
 	}
 
 	// env options are the priority, then cmd options, then disk options
@@ -254,6 +268,11 @@ func mergeOptionsClient(mergeInto *OptionsClient, newValues OptionsClient) {
 		mergeInto.Config = newValues.Config
 		mergeInto.Config.BeenSet = true
 	}
+
+	if newValues.ServerAddressGRPC.BeenSet {
+		mergeInto.ServerAddressGRPC = newValues.ServerAddressGRPC
+		mergeInto.ServerAddressGRPC.BeenSet = true
+	}
 }
 
 func getEnvOptionsClient() *OptionsClient {
@@ -272,14 +291,16 @@ func getOptionsClient(args []string) (*OptionsClient, error) {
 	fs := flag.NewFlagSet("metrics-aggregator-client", flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // optional: silence flag errors in tests
 
-	fs.Var(&opt.ServerAddress, "a", "port on which the server should run")
+	fs.Var(&opt.ServerAddress, "a", "port on which the http server should run")
+	fs.Var(&opt.Config, "address-grpc", "port on which the grpc server should run")
+
 	fs.Var(&opt.ReportInterval, "r", "how often console utility should send metrics")
 	fs.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")
 	fs.Var(&opt.SecretKey, "k", "симметричный ключ шифрования для подписи сообщений")
 	fs.Var(&opt.RateLimit, "l", "потолок одновременных запросов делается к серверу, RATE_LIMIT")
 
 	fs.Var(&opt.CryptoKey, "crypto-key", "путь до файла с публичным ключом")
-	
+
 	fs.Var(&opt.Config, "config", "путь до файла с конфигурацией приложения")
 	fs.Var(&opt.Config, "c", "путь до файла с конфигурацией приложения")
 
