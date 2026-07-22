@@ -75,7 +75,7 @@ func main() {
 	)
 	grpcListener, err := net.Listen(
 		"tcp",
-		":9090",
+		currentConfig.ServerAddressGRPC.Value,
 	)
 
 	if err != nil {
@@ -83,7 +83,7 @@ func main() {
 	}
 
 	go func() {
-		logger.Info("starting grpc server")
+		logger.Info("starting grpc server ", zap.String("Server addr", currentConfig.ServerAddressGRPC.Value))
 		if err := grpcSrv.Serve(grpcListener); err != nil {
 			logger.Error("grpc server stopped", zap.Error(err))
 		}
