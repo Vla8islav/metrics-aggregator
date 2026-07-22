@@ -17,7 +17,8 @@ import (
 //
 // Values' order of precedence: environment vars, command-line flags, defaults
 type OptionsServer struct {
-	ServerAddress OptionalString `env:"ADDRESS" json:"address"`
+	ServerAddress     OptionalString `env:"ADDRESS" json:"address"`
+	ServerAddressGRPC OptionalString `env:"ADDRESS_GRPC" json:"address_grpc"`
 
 	StoreInterval   OptionalSecondsDuration `env:"STORE_INTERVAL" json:"store_interval"`
 	FileStoragePath OptionalString          `env:"FILE_STORAGE_PATH" json:"store_file"`
@@ -90,6 +91,10 @@ func logSetFlagsServer(options *OptionsServer) {
 		setFlags = append(setFlags, fmt.Sprintf("-trusted-subnet=%s", options.TrustedSubnet.Value))
 	}
 
+	if options.ServerAddressGRPC.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-address-grpc=%s", options.ServerAddressGRPC.Value))
+	}
+
 	if len(setFlags) == 0 {
 		log.Println("no command-line flags were set")
 		return
@@ -154,6 +159,10 @@ func logSetEnvServer(options *OptionsServer) {
 		setEnv = append(setEnv, fmt.Sprintf("TRUSTED_SUBNET=%s", options.TrustedSubnet.Value))
 	}
 
+	if options.ServerAddressGRPC.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("ADDRESS_GRPC=%s", options.ServerAddressGRPC.Value))
+	}
+
 	if len(setEnv) == 0 {
 		log.Println("no environment variables were set")
 		return
@@ -214,6 +223,10 @@ func logConfigOptions(options *OptionsServer) {
 		setOptions = append(setOptions, fmt.Sprintf("trusted_subnet=%s", options.TrustedSubnet.Value))
 	}
 
+	if options.ServerAddressGRPC.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("address_grpc=%s", options.ServerAddressGRPC.Value))
+	}
+
 	if len(setOptions) == 0 {
 		log.Println("no config file options were set")
 		return
@@ -255,7 +268,9 @@ func ReadFlagsServer(args []string) (*OptionsServer, error) {
 	}
 
 	finalOptions := OptionsServer{
-		ServerAddress:   OptionalString{Value: "localhost:8080", BeenSet: false},
+		ServerAddress:     OptionalString{Value: "localhost:8080", BeenSet: false},
+		ServerAddressGRPC: OptionalString{Value: "localhost:9090", BeenSet: false},
+
 		StoreInterval:   OptionalSecondsDuration{Duration: time.Second * 300, BeenSet: false},
 		FileStoragePath: OptionalString{Value: "storage.dat", BeenSet: false},
 		DatabaseDSN: OptionalString{Value: "postgres://default_user:default_password@localhost:5432/metrics_db?sslmode=disable",
@@ -375,6 +390,11 @@ func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 		mergeInto.Config = newValues.Config
 		mergeInto.Config.BeenSet = true
 	}
+
+	if newValues.ServerAddressGRPC.BeenSet {
+		mergeInto.ServerAddressGRPC = newValues.ServerAddressGRPC
+		mergeInto.ServerAddressGRPC.BeenSet = true
+	}
 }
 
 func getEnvOptions() *OptionsServer {
@@ -394,6 +414,7 @@ func getOptionsServer(args []string) (*OptionsServer, error) {
 	fs.SetOutput(io.Discard) // optional: silence flag errors in tests
 
 	fs.Var(&opt.ServerAddress, "a", "port on which the server should run")
+	fs.Var(&opt.Config, "address-grpc", "port on which the grpc server should run")
 
 	fs.Var(&opt.StoreInterval, "i", "интервал времени в секундах, по истечении которого"+
 		" текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)")

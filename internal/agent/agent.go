@@ -62,7 +62,7 @@ func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) (*Agent, 
 		5*time.Second, 2)
 
 	grpcConn, err := grpc.NewClient(
-		currentConfig.ServerAddress.Value,
+		currentConfig.ServerAddressGRPC.Value,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
