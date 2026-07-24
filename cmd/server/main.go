@@ -23,6 +23,7 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/service"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	_ "net/http/pprof"
 )
@@ -55,21 +56,31 @@ func main() {
 	srvApp := service.NewMetricsService(db)
 
 	// <grpc>
-	ipChecker, err := middlewares_grpc.WithIPChecker(
-		currentConfig.TrustedSubnets,
-		logger,
+
+	var interceptors []grpc.UnaryServerInterceptor
+	interceptors = append(interceptors, middlewares_grpc.WithLogging(logger))
+	interceptors = addOptionalIPCheck(currentConfig, logger, interceptors)
+
+	var grpcOptions []grpc.ServerOption
+	grpcOptions = append(
+		grpcOptions,
+		grpc.ChainUnaryInterceptor(interceptors...),
 	)
-	if err != nil {
-		logger.Fatal(
-			"failed to initialize gRPC IP checker",
-			zap.Error(err),
+	if currentConfig.SecretKey.BeenSet && currentConfig.CryptoKey.BeenSet {
+		transportCredentials, err2 := credentials.NewServerTLSFromFile(
+			currentConfig.CryptoKey.Value,
+			currentConfig.SecretKey.Value,
+		)
+		if err2 != nil {
+			panic("error loading gRPC TLS credentials: " + err2.Error())
+		}
+		grpcOptions = append(
+			grpcOptions,
+			grpc.Creds(transportCredentials),
 		)
 	}
 
-	grpcSrv := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(middlewares_grpc.WithLogging(logger),
-			ipChecker,
-		))
+	grpcSrv := grpc.NewServer(grpcOptions...)
 
 	proto.RegisterMetricsServer(
 		grpcSrv,
@@ -176,4 +187,23 @@ func main() {
 	}
 
 	logger.Info("server stopped")
+}
+
+func addOptionalIPCheck(currentConfig *config.OptionsServer,
+	logger *zap.Logger,
+	interceptors []grpc.UnaryServerInterceptor) []grpc.UnaryServerInterceptor {
+	if currentConfig.TrustedSubnets.BeenSet {
+		ipChecker, err := middlewares_grpc.WithIPChecker(
+			currentConfig.TrustedSubnets,
+			logger,
+		)
+		if err != nil {
+			logger.Fatal(
+				"failed to initialize gRPC IP checker",
+				zap.Error(err),
+			)
+		}
+		interceptors = append(interceptors, ipChecker)
+	}
+	return interceptors
 }
