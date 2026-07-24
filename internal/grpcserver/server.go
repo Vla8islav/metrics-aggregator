@@ -1,3 +1,4 @@
+// Package grpcserver grpc server that accepts metrics from clients
 package grpcserver
 
 import (
@@ -38,13 +39,13 @@ func (s *Server) UpdateMetrics(
 
 	metrics := make([]models.Metrics, 0, len(req.GetMetrics()))
 	for i, metric := range req.GetMetrics() {
-		converted, err := metricFromProto(metric)
-		if err != nil {
+		converted, err2 := metricFromProto(metric)
+		if err2 != nil {
 			return nil, status.Errorf(
 				codes.InvalidArgument,
 				"invalid metric at index %d: %v",
 				i,
-				err,
+				err2,
 			)
 		}
 
@@ -52,7 +53,7 @@ func (s *Server) UpdateMetrics(
 		metrics = append(metrics, converted)
 	}
 
-	if err := s.service.UpdateMetrics(ctx, metrics); err != nil {
+	if err2 := s.service.UpdateMetrics(ctx, metrics); err2 != nil {
 		return nil, status.Error(codes.Internal, "failed to update metrics")
 	}
 

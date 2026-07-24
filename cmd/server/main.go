@@ -86,7 +86,7 @@ func main() {
 
 	go func() {
 		logger.Info("starting grpc server ", zap.String("Server addr", currentConfig.ServerAddressGRPC.Value))
-		if err := grpcSrv.Serve(grpcListener); err != nil {
+		if err = grpcSrv.Serve(grpcListener); err != nil {
 			logger.Error("grpc server stopped", zap.Error(err))
 		}
 	}()
@@ -125,8 +125,8 @@ func main() {
 	}
 
 	if currentConfig.CryptoKey.BeenSet {
-		privateKey, err := helpers.ReadPrivateKey(currentConfig.CryptoKey.Value)
-		if err != nil {
+		privateKey, err2 := helpers.ReadPrivateKey(currentConfig.CryptoKey.Value)
+		if err2 != nil {
 			logger.Fatal("failed to read private key", zap.Error(err))
 		}
 		handlerWithMW = middlewares.ChainMiddlewares(

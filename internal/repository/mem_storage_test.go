@@ -17,7 +17,7 @@ const defaultGaugeName = "gauge"
 func TestMemStorageIncrementCounter(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	cfg := config.ReadFlagsServer(nil)
+	cfg, _ := config.ReadFlagsServer(nil)
 	s := NewMemStorage(cfg)
 
 	err := s.IncrementCounter(ctx, defaultCounterName, 5)
@@ -37,7 +37,7 @@ func TestMemStorageIncrementCounter(t *testing.T) {
 func TestMemStorageSetGauge(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	cfg := config.ReadFlagsServer(nil)
+	cfg, _ := config.ReadFlagsServer(nil)
 	s := NewMemStorage(cfg)
 	delta := 0.000001
 
@@ -57,7 +57,7 @@ func TestMemStorageSetGauge(t *testing.T) {
 func TestMemStorageConcurrentAccessCounter(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	cfg := config.ReadFlagsServer(nil)
+	cfg, _ := config.ReadFlagsServer(nil)
 	s := NewMemStorage(cfg)
 	var wg sync.WaitGroup
 	const workers = 100
@@ -87,7 +87,7 @@ func TestMemStorageConcurrentAccessCounter(t *testing.T) {
 func TestMemStorageConcurrentAccessGauge(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	cfg := config.ReadFlagsServer(nil)
+	cfg, _ := config.ReadFlagsServer(nil)
 	s := NewMemStorage(cfg)
 	var wg sync.WaitGroup
 	const workers = 100
