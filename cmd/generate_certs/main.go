@@ -27,6 +27,7 @@ func main() {
 		},
 		// разрешаем использование сертификата для 127.0.0.1 и ::1
 		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+		DNSNames:    []string{"localhost"},
 		// сертификат верен, начиная со времени создания
 		NotBefore: time.Now(),
 		// время жизни сертификата — 10 лет

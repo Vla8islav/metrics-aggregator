@@ -66,10 +66,10 @@ func main() {
 		grpcOptions,
 		grpc.ChainUnaryInterceptor(interceptors...),
 	)
-	if currentConfig.SecretKey.BeenSet && currentConfig.CryptoKey.BeenSet {
+	if currentConfig.PublicKey.BeenSet && currentConfig.PrivateKey.BeenSet {
 		transportCredentials, err2 := credentials.NewServerTLSFromFile(
-			currentConfig.CryptoKey.Value,
-			currentConfig.SecretKey.Value,
+			currentConfig.PublicKey.Value,
+			currentConfig.PrivateKey.Value,
 		)
 		if err2 != nil {
 			panic("error loading gRPC TLS credentials: " + err2.Error())
@@ -128,15 +128,15 @@ func main() {
 		middlewares.WithIpChecker(currentConfig.TrustedSubnets, logger),
 	)
 
-	if currentConfig.SecretKey.BeenSet {
+	if currentConfig.PublicKey.BeenSet {
 		handlerWithMW = middlewares.ChainMiddlewares(
 			handlerWithMW,
-			middlewares.WithChecksum(currentConfig.SecretKey.Value, logger),
+			middlewares.WithChecksum(currentConfig.PublicKey.Value, logger),
 		)
 	}
 
-	if currentConfig.CryptoKey.BeenSet {
-		privateKey, err2 := helpers.ReadPrivateKey(currentConfig.CryptoKey.Value)
+	if currentConfig.PrivateKey.BeenSet {
+		privateKey, err2 := helpers.ReadPrivateKey(currentConfig.PrivateKey.Value)
 		if err2 != nil {
 			logger.Fatal("failed to read private key", zap.Error(err))
 		}

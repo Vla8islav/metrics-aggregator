@@ -26,7 +26,7 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -61,10 +61,20 @@ func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) (*Agent, 
 	retryClient := helpers.NewHTTPRetryClient(helpers.DefaultShouldRetryStatus,
 		5*time.Second, 2)
 
+	creds, err := credentials.NewClientTLSFromFile(
+		currentConfig.CryptoKey.Value,
+		"",
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("load gRPC TLS certificate: %w", err)
+	}
+
 	grpcConn, err := grpc.NewClient(
 		currentConfig.ServerAddressGRPC.Value,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(creds),
 	)
+
 	if err != nil {
 		return nil, fmt.Errorf("create gRPC client: %w", err)
 	}

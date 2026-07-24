@@ -31,8 +31,8 @@ type OptionsServer struct {
 	AuditURL  OptionalString `env:"AUDIT_URL" json:"audit_url"`
 	AuditFile OptionalString `env:"AUDIT_FILE" json:"audit_file"`
 
-	SecretKey OptionalString `env:"KEY" json:"secret_key"`
-	CryptoKey OptionalString `env:"CRYPTO_KEY" json:"crypto_key"`
+	PublicKey  OptionalString `env:"PUBLIC_KEY" json:"public_key"`
+	PrivateKey OptionalString `env:"PRIVATE_KEY" json:"private_key"`
 	// CIDR subnets, comma-separated like 192.168.0.0/24,10.0.0.0/8
 	TrustedSubnets OptionalString `env:"TRUSTED_SUBNETS" json:"trusted_subnets"`
 
@@ -69,10 +69,6 @@ func logSetFlagsServer(options *OptionsServer) {
 		setFlags = append(setFlags, fmt.Sprintf("-m=%s", options.MigrationsFolder.Value))
 	}
 
-	if options.SecretKey.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-k=%s", options.SecretKey.Value))
-	}
-
 	if options.AuditURL.BeenSet {
 		setFlags = append(setFlags, fmt.Sprintf("--audit-url=%s", options.AuditURL.Value))
 	}
@@ -81,8 +77,12 @@ func logSetFlagsServer(options *OptionsServer) {
 		setFlags = append(setFlags, fmt.Sprintf("--audit-file=%s", options.AuditFile.Value))
 	}
 
-	if options.CryptoKey.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-crypto-key=%s", options.CryptoKey.Value))
+	if options.PublicKey.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-public-key=%s", options.PublicKey.Value))
+	}
+
+	if options.PrivateKey.BeenSet {
+		setFlags = append(setFlags, fmt.Sprintf("-private-key=%s", options.PrivateKey.Value))
 	}
 
 	if options.Config.BeenSet {
@@ -137,10 +137,6 @@ func logSetEnvServer(options *OptionsServer) {
 		setEnv = append(setEnv, fmt.Sprintf("MIGRATIONS_FOLDER=%s", options.MigrationsFolder.Value))
 	}
 
-	if options.SecretKey.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("SECRET_KEY=%s", options.SecretKey.Value))
-	}
-
 	if options.AuditURL.BeenSet {
 		setEnv = append(setEnv, fmt.Sprintf("AUDIT_URL=%s", options.AuditURL.Value))
 	}
@@ -149,8 +145,12 @@ func logSetEnvServer(options *OptionsServer) {
 		setEnv = append(setEnv, fmt.Sprintf("AUDIT_FILE=%s", options.AuditFile.Value))
 	}
 
-	if options.CryptoKey.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("CRYPTO_KEY=%s", options.CryptoKey.Value))
+	if options.PublicKey.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("PUBLIC_KEY=%s", options.PublicKey.Value))
+	}
+
+	if options.PrivateKey.BeenSet {
+		setEnv = append(setEnv, fmt.Sprintf("PRIVATE_KEY=%s", options.PrivateKey.Value))
 	}
 
 	if options.Config.BeenSet {
@@ -205,8 +205,12 @@ func logConfigOptions(options *OptionsServer) {
 		setOptions = append(setOptions, fmt.Sprintf("migrations_folder=%s", options.MigrationsFolder.Value))
 	}
 
-	if options.SecretKey.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("secret_key=%s", options.SecretKey.Value))
+	if options.PublicKey.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("public_key=%s", options.PublicKey.Value))
+	}
+
+	if options.PrivateKey.BeenSet {
+		setOptions = append(setOptions, fmt.Sprintf("private_key=%s", options.PrivateKey.Value))
 	}
 
 	if options.AuditURL.BeenSet {
@@ -215,10 +219,6 @@ func logConfigOptions(options *OptionsServer) {
 
 	if options.AuditFile.BeenSet {
 		setOptions = append(setOptions, fmt.Sprintf("audit_file=%s", options.AuditFile.Value))
-	}
-
-	if options.CryptoKey.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("crypto_key=%s", options.CryptoKey.Value))
 	}
 
 	if options.TrustedSubnets.BeenSet {
@@ -279,10 +279,10 @@ func ReadFlagsServer(args []string) (*OptionsServer, error) {
 			BeenSet: false},
 		MigrationsFolder: OptionalString{Value: "./migrations", BeenSet: false},
 		Restore:          OptionalBool{Value: true, BeenSet: false},
-		SecretKey:        OptionalString{Value: "", BeenSet: false},
+		PublicKey:        OptionalString{Value: "", BeenSet: false},
+		PrivateKey:       OptionalString{Value: "", BeenSet: false},
 		AuditFile:        OptionalString{Value: "", BeenSet: false},
 		AuditURL:         OptionalString{Value: "", BeenSet: false},
-		CryptoKey:        OptionalString{Value: "", BeenSet: false},
 		TrustedSubnets:   OptionalString{Value: "", BeenSet: false},
 
 		Config: OptionalString{Value: "", BeenSet: false},
@@ -372,11 +372,6 @@ func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 		mergeInto.MigrationsFolder.BeenSet = true
 	}
 
-	if newValues.SecretKey.BeenSet {
-		mergeInto.SecretKey = newValues.SecretKey
-		mergeInto.SecretKey.BeenSet = true
-	}
-
 	if newValues.AuditURL.BeenSet {
 		mergeInto.AuditURL = newValues.AuditURL
 		mergeInto.AuditURL.BeenSet = true
@@ -387,9 +382,14 @@ func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 		mergeInto.AuditFile.BeenSet = true
 	}
 
-	if newValues.CryptoKey.BeenSet {
-		mergeInto.CryptoKey = newValues.CryptoKey
-		mergeInto.CryptoKey.BeenSet = true
+	if newValues.PublicKey.BeenSet {
+		mergeInto.PublicKey = newValues.PublicKey
+		mergeInto.PublicKey.BeenSet = true
+	}
+
+	if newValues.PrivateKey.BeenSet {
+		mergeInto.PrivateKey = newValues.PrivateKey
+		mergeInto.PrivateKey.BeenSet = true
 	}
 
 	if newValues.TrustedSubnets.BeenSet {
@@ -435,12 +435,12 @@ func getOptionsServer(args []string) (*OptionsServer, error) {
 		"следует ли загружать ранее сохранённые значения из указанного файла при старте сервера")
 	fs.Var(&opt.DatabaseDSN, "d", "connection string/dsn для postgres базы данных")
 	fs.Var(&opt.MigrationsFolder, "m", "относительный путь до миграций, например ./migrations")
-	fs.Var(&opt.SecretKey, "k", "симметричный ключ шифрования для подписи сообщений")
 
 	fs.Var(&opt.AuditURL, "audit-url", "адрес сервера аудита")
 	fs.Var(&opt.AuditFile, "audit-file", "путь до файла с публичным ключом аудита")
 
-	fs.Var(&opt.CryptoKey, "crypto-key", "путь до файла с приватным ключом")
+	fs.Var(&opt.PublicKey, "public-key", "симметричный ключ шифрования для подписи сообщений")
+	fs.Var(&opt.PrivateKey, "private-key", "путь до файла с приватным ключом")
 
 	fs.Var(&opt.Config, "config", "путь до файла с конфигурацией приложения")
 	fs.Var(&opt.Config, "c", "путь до файла с конфигурацией приложения")
