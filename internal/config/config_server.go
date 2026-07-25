@@ -12,6 +12,7 @@ import (
 
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	"github.com/caarlos0/env/v6"
+	"go.uber.org/zap"
 )
 
 // OptionsServer configuration parameters for the metrics server
@@ -37,6 +38,8 @@ type OptionsServer struct {
 	TrustedSubnets OptionalString `env:"TRUSTED_SUBNETS" json:"trusted_subnets"`
 
 	Config OptionalString `env:"CONFIG" json:"-"`
+
+	logger *zap.Logger
 }
 
 func logSetFlagsServer(options *OptionsServer) {
@@ -425,7 +428,7 @@ func getOptionsServer(args []string) (*OptionsServer, error) {
 	fs.SetOutput(io.Discard) // optional: silence flag errors in tests
 
 	fs.Var(&opt.ServerAddress, "a", "port on which the server should run")
-	fs.Var(&opt.Config, "address-grpc", "port on which the grpc server should run")
+	fs.Var(&opt.ServerAddressGRPC, "address-grpc", "port on which the grpc server should run")
 
 	fs.Var(&opt.StoreInterval, "i", "интервал времени в секундах, по истечении которого"+
 		" текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)")

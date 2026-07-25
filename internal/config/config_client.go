@@ -4,13 +4,12 @@ package config
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
-	"log"
 	"os"
 	"time"
 
 	"github.com/caarlos0/env/v6"
+	"go.uber.org/zap"
 )
 
 // OptionsClient configuration parameters for the metrics agent client
@@ -26,157 +25,163 @@ type OptionsClient struct {
 	SecretKey OptionalString `env:"KEY" json:"secret_key"`
 
 	Config OptionalString `env:"CONFIG" json:"-"`
+
+	logger *zap.Logger
 }
 
 func logSetFlagsClient(options *OptionsClient) {
 	if options == nil {
 		return
 	}
-	var setFlags []string
+
+	fields := make([]zap.Field, 0)
 
 	if options.ServerAddress.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-a=%s", options.ServerAddress.Value))
+		fields = append(fields, zap.String("-a", options.ServerAddress.String()))
 	}
 
 	if options.ReportInterval.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-r=%s", options.ReportInterval.Duration))
+		fields = append(fields, zap.String("-r", options.ReportInterval.String()))
 	}
 
 	if options.PollInterval.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-p=%s", options.PollInterval.Duration))
+		fields = append(fields, zap.String("-p", options.PollInterval.Duration.String()))
 	}
 
 	if options.SecretKey.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-k=%s", options.SecretKey.Value))
+		fields = append(fields, zap.String("-k", options.SecretKey.Value))
 	}
 
 	if options.RateLimit.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-l=%d", options.RateLimit.Value))
+		fields = append(fields, zap.Int("-l", options.RateLimit.Value))
 	}
 
 	if options.CryptoKey.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-crypto-key=%s", options.CryptoKey.Value))
+		fields = append(fields, zap.String("-crypto-key", options.CryptoKey.Value))
 	}
 
 	if options.Config.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-config=%s", options.Config.Value))
+		fields = append(fields, zap.String("-config", options.Config.Value))
 	}
 
 	if options.ServerAddressGRPC.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-address-grpc=%s", options.ServerAddressGRPC.Value))
+		fields = append(fields, zap.String("-address-grpc", options.ServerAddressGRPC.Value))
 	}
 
-	if len(setFlags) == 0 {
-		log.Println("no command-line flags were set")
+	if len(fields) == 0 {
+		options.logger.Info("no command-line flags were set")
 		return
 	}
 
-	for _, flagValue := range setFlags {
-		log.Printf("command-line flag set: %s", flagValue)
-	}
+	options.logger.Info("command line options", fields...)
 }
 
 func logSetEnvClient(options *OptionsClient) {
 	if options == nil {
 		return
 	}
-	var setEnv []string
+
+	fields := make([]zap.Field, 0)
 
 	if options.ServerAddress.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("ADDRESS=%s", options.ServerAddress.Value))
+		fields = append(fields, zap.String("ADDRESS", options.ServerAddress.Value))
 	}
 
 	if options.ReportInterval.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("REPORT_INTERVAL=%s", options.ReportInterval.Duration))
+		fields = append(fields, zap.String("REPORT_INTERVAL", options.ReportInterval.Duration.String()))
 	}
 
 	if options.PollInterval.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("POLL_INTERVAL=%s", options.PollInterval.Duration))
+		fields = append(fields, zap.String("POLL_INTERVAL", options.PollInterval.Duration.String()))
 	}
 
 	if options.SecretKey.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("KEY=%s", options.SecretKey.Value))
+		fields = append(fields, zap.String("KEY", options.SecretKey.Value))
 	}
 
 	if options.RateLimit.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("RATE_LIMIT=%d", options.RateLimit.Value))
+		fields = append(fields, zap.Int("RATE_LIMIT", options.RateLimit.Value))
 	}
 
 	if options.CryptoKey.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("CRYPTO_KEY=%s", options.CryptoKey.Value))
+		fields = append(fields, zap.String("CRYPTO_KEY", options.CryptoKey.Value))
 	}
 
 	if options.Config.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("CONFIG=%s", options.Config.Value))
+		fields = append(fields, zap.String("CONFIG", options.Config.Value))
 	}
 
 	if options.ServerAddressGRPC.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("ADDRESS_GRPC=%s", options.ServerAddressGRPC.Value))
+		fields = append(fields, zap.String("ADDRESS_GRPC", options.ServerAddressGRPC.Value))
 	}
 
-	if len(setEnv) == 0 {
-		log.Println("no environment variables were set")
+	if len(fields) == 0 {
+		options.logger.Info("no environment variables were set")
 		return
 	}
 
-	for _, envValue := range setEnv {
-		log.Printf("environment variable set: %s", envValue)
-	}
+	options.logger.Info("environment variables", fields...)
 }
 
 func logConfigOptionsClient(options *OptionsClient) {
 	if options == nil {
 		return
 	}
-	var setOptions []string
+
+	fields := make([]zap.Field, 0)
 
 	if options.ServerAddress.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("address=%s", options.ServerAddress.Value))
+		fields = append(fields, zap.String("address", options.ServerAddress.Value))
 	}
 
 	if options.PollInterval.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("poll_interval=%s", options.PollInterval.Duration))
+		fields = append(fields, zap.String("poll_interval", options.PollInterval.Duration.String()))
 	}
 
 	if options.ReportInterval.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("report_interval=%s", options.ReportInterval.Duration))
+		fields = append(fields, zap.String("report_interval", options.ReportInterval.Duration.String()))
 	}
 
 	if options.RateLimit.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("rate_limit=%d", options.RateLimit.Value))
+		fields = append(fields, zap.Int("rate_limit", options.RateLimit.Value))
 	}
 
 	if options.SecretKey.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("secret_key=%s", options.SecretKey.Value))
+		fields = append(fields, zap.String("secret_key", options.SecretKey.Value))
 	}
 
 	if options.CryptoKey.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("crypto_key=%s", options.CryptoKey.Value))
+		fields = append(fields, zap.String("crypto_key", options.CryptoKey.Value))
 	}
 
 	if options.ServerAddressGRPC.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("address_grpc=%s", options.ServerAddressGRPC.Value))
+		fields = append(fields, zap.String("address_grpc", options.ServerAddressGRPC.Value))
 	}
 
-	if len(setOptions) == 0 {
-		log.Println("no config file options were set")
+	if len(fields) == 0 {
+		options.logger.Info("no config file options were set")
 		return
 	}
 
-	for _, optionValue := range setOptions {
-		log.Printf("config file option set: %s", optionValue)
-	}
+	options.logger.Info("config file options", fields...)
 }
 
 // ReadFlagsClient reads and merges client configuration from command-line flags and environment variables
-func ReadFlagsClient(args []string) *OptionsClient {
-	cmdOptions, err := getOptionsClient(args)
+func ReadFlagsClient(args []string, logger *zap.Logger) *OptionsClient {
+	if logger == nil {
+		panic("config client logger is nil")
+	}
+
+	cmdOptions, err := getOptionsClient(args, logger)
 	if err != nil {
-		log.Fatalln(err)
+		logger.Fatal("failed to read command-line flags", zap.Error(err))
 	}
 	logSetFlagsClient(cmdOptions)
 
-	envOptions := getEnvOptionsClient()
+	envOptions, err := getEnvOptionsClient(logger)
+	if err != nil {
+		logger.Fatal("failed to read environment variables", zap.Error(err))
+	}
 	logSetEnvClient(envOptions)
 
 	var diskConfigOptions OptionsClient
@@ -188,9 +193,9 @@ func ReadFlagsClient(args []string) *OptionsClient {
 		} else if envOptions.Config.BeenSet && envOptions.Config.Value != "" {
 			configFilename = envOptions.Config.Value
 		}
-		diskConfigOptions, err = getDiskConfigOptionsClient(configFilename)
+		diskConfigOptions, err = getDiskConfigOptionsClient(configFilename, logger)
 		if err != nil {
-			log.Fatalln(err)
+			logger.Fatal("failed to read config file", zap.Error(err))
 		}
 		logConfigOptionsClient(&diskConfigOptions)
 	}
@@ -204,6 +209,7 @@ func ReadFlagsClient(args []string) *OptionsClient {
 		RateLimit:         OptionalInt{Value: 10, BeenSet: false},
 		CryptoKey:         OptionalString{Value: "", BeenSet: false},
 		Config:            OptionalString{Value: "", BeenSet: false},
+		logger:            logger,
 	}
 
 	// env options are the priority, then cmd options, then disk options
@@ -215,19 +221,19 @@ func ReadFlagsClient(args []string) *OptionsClient {
 	return &finalOptions
 }
 
-func getDiskConfigOptionsClient(filename string) (OptionsClient, error) {
+func getDiskConfigOptionsClient(filename string, logger *zap.Logger) (OptionsClient, error) {
 	if filename == "" {
-		return OptionsClient{}, nil
+		return OptionsClient{logger: logger}, nil
 	}
 
 	configBytes, err := os.ReadFile(filename)
 	if err != nil {
-		return OptionsClient{}, err
+		return OptionsClient{logger: logger}, err
 	}
 
 	var options OptionsClient
 	if err = json.Unmarshal(configBytes, &options); err != nil {
-		return OptionsClient{}, err
+		return OptionsClient{logger: logger}, err
 	}
 
 	return options, nil
@@ -275,24 +281,24 @@ func mergeOptionsClient(mergeInto *OptionsClient, newValues OptionsClient) {
 	}
 }
 
-func getEnvOptionsClient() *OptionsClient {
-	var opt OptionsClient
+func getEnvOptionsClient(logger *zap.Logger) (*OptionsClient, error) {
+	opt := OptionsClient{logger: logger}
 	err := env.Parse(&opt)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
-	return &opt
+	return &opt, nil
 }
 
-func getOptionsClient(args []string) (*OptionsClient, error) {
+func getOptionsClient(args []string, logger *zap.Logger) (*OptionsClient, error) {
 
-	opt := &OptionsClient{}
+	opt := &OptionsClient{logger: logger}
 
 	fs := flag.NewFlagSet("metrics-aggregator-client", flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // optional: silence flag errors in tests
 
 	fs.Var(&opt.ServerAddress, "a", "port on which the http server should run")
-	fs.Var(&opt.Config, "address-grpc", "port on which the grpc server should run")
+	fs.Var(&opt.ServerAddressGRPC, "address-grpc", "port on which the grpc server should run")
 
 	fs.Var(&opt.ReportInterval, "r", "how often console utility should send metrics")
 	fs.Var(&opt.PollInterval, "p", "how often console utility should poll metrics")

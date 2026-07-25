@@ -461,6 +461,7 @@ func (a *Agent) sendBatchGRPC(
 				err,
 			)
 		}
+
 		protoMetrics = append(protoMetrics, metric)
 	}
 
@@ -475,12 +476,11 @@ func (a *Agent) sendBatchGRPC(
 		interfaceAddr,
 	)
 
-	_, err = a.grpcClient.UpdateMetrics(
-		ctx,
-		&proto.UpdateMetricsRequest{
-			Metrics: protoMetrics,
-		},
-	)
+	request := proto.UpdateMetricsRequest_builder{
+		Metrics: protoMetrics,
+	}.Build()
+
+	_, err = a.grpcClient.UpdateMetrics(ctx, request)
 	if err != nil {
 		return fmt.Errorf("update metrics through gRPC: %w", err)
 	}
@@ -494,9 +494,9 @@ func (a *Agent) sendBatchGRPC(
 }
 
 func metricToProto(metric models.Metrics) (*proto.Metric, error) {
-	resultProto := &proto.Metric{
-		Id: metric.ID,
-	}
+	resultProto := &proto.Metric{}
+
+	resultProto.SetId(metric.ID)
 
 	switch metric.MType {
 	case models.Gauge:
@@ -507,8 +507,8 @@ func metricToProto(metric models.Metrics) (*proto.Metric, error) {
 			)
 		}
 
-		resultProto.Type = proto.Metric_GAUGE
-		resultProto.Value = *metric.Value
+		resultProto.SetType(proto.Metric_GAUGE)
+		resultProto.SetValue(*metric.Value)
 
 	case models.Counter:
 		if metric.Delta == nil {
@@ -518,8 +518,8 @@ func metricToProto(metric models.Metrics) (*proto.Metric, error) {
 			)
 		}
 
-		resultProto.Type = proto.Metric_COUNTER
-		resultProto.Delta = *metric.Delta
+		resultProto.SetType(proto.Metric_COUNTER)
+		resultProto.SetDelta(*metric.Delta)
 
 	default:
 		return nil, fmt.Errorf(

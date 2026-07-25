@@ -47,6 +47,7 @@ generate-prot:
 	protoc \
       --go_out=paths=source_relative:. \
       --go-grpc_out=paths=source_relative:. \
+      --go_opt=default_api_level=API_OPAQUE \
       internal/proto/metrics.proto
 
 cert-gen:
