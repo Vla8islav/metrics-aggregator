@@ -1,4 +1,4 @@
-package middlewares_grpc
+package interceptors_grpc
 
 import (
 	"context"

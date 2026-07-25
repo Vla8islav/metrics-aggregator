@@ -9,6 +9,7 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 const defaultCounterName = "count"
@@ -17,7 +18,7 @@ const defaultGaugeName = "gauge"
 func TestMemStorageIncrementCounter(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	cfg, _ := config.ReadFlagsServer(nil)
+	cfg, _ := config.ReadFlagsServer(nil, zap.NewNop())
 	s := NewMemStorage(cfg)
 
 	err := s.IncrementCounter(ctx, defaultCounterName, 5)
@@ -37,7 +38,7 @@ func TestMemStorageIncrementCounter(t *testing.T) {
 func TestMemStorageSetGauge(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	cfg, _ := config.ReadFlagsServer(nil)
+	cfg, _ := config.ReadFlagsServer(nil, zap.NewNop())
 	s := NewMemStorage(cfg)
 	delta := 0.000001
 
@@ -57,7 +58,7 @@ func TestMemStorageSetGauge(t *testing.T) {
 func TestMemStorageConcurrentAccessCounter(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	cfg, _ := config.ReadFlagsServer(nil)
+	cfg, _ := config.ReadFlagsServer(nil, zap.NewNop())
 	s := NewMemStorage(cfg)
 	var wg sync.WaitGroup
 	const workers = 100
@@ -87,7 +88,7 @@ func TestMemStorageConcurrentAccessCounter(t *testing.T) {
 func TestMemStorageConcurrentAccessGauge(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
-	cfg, _ := config.ReadFlagsServer(nil)
+	cfg, _ := config.ReadFlagsServer(nil, zap.NewNop())
 	s := NewMemStorage(cfg)
 	var wg sync.WaitGroup
 	const workers = 100

@@ -17,8 +17,8 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/grpcserver"
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
+	"github.com/Vla8islav/metrics-aggregator/internal/interceptors_grpc"
 	"github.com/Vla8islav/metrics-aggregator/internal/middlewares"
-	"github.com/Vla8islav/metrics-aggregator/internal/middlewares_grpc"
 	"github.com/Vla8islav/metrics-aggregator/internal/proto"
 	"github.com/Vla8islav/metrics-aggregator/internal/service"
 	"go.uber.org/zap"
@@ -58,7 +58,7 @@ func main() {
 	// <grpc>
 
 	var interceptors []grpc.UnaryServerInterceptor
-	interceptors = append(interceptors, middlewares_grpc.WithLogging(logger))
+	interceptors = append(interceptors, interceptors_grpc.WithLogging(logger))
 	interceptors = addOptionalIPCheck(currentConfig, logger, interceptors)
 
 	var grpcOptions []grpc.ServerOption
@@ -193,7 +193,7 @@ func addOptionalIPCheck(currentConfig *config.OptionsServer,
 	logger *zap.Logger,
 	interceptors []grpc.UnaryServerInterceptor) []grpc.UnaryServerInterceptor {
 	if currentConfig.TrustedSubnets.BeenSet {
-		ipChecker, err := middlewares_grpc.WithIPChecker(
+		ipChecker, err := interceptors_grpc.WithIPChecker(
 			currentConfig.TrustedSubnets,
 			logger,
 		)

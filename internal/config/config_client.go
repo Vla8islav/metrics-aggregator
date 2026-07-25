@@ -217,7 +217,6 @@ func ReadFlagsClient(args []string, logger *zap.Logger) *OptionsClient {
 	mergeOptionsClient(&finalOptions, *cmdOptions)
 	mergeOptionsClient(&finalOptions, *envOptions)
 
-	//setOptionsTrue(&finalOptions)
 	return &finalOptions
 }
 

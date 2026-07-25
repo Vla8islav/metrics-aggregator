@@ -1,5 +1,5 @@
-// Package middlewares_grpc ip checker grpc interceptor
-package middlewares_grpc
+// Package interceptors_grpc ip checker grpc interceptor
+package interceptors_grpc
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -38,7 +38,7 @@ func WithIPChecker(
 		_, network, err := net.ParseCIDR(subnet)
 		if err != nil {
 			return nil, fmt.Errorf(
-				"parse trusted subnet fauled %q: %w",
+				"parse trusted subnet faulted %q: %w",
 				subnet,
 				err,
 			)
@@ -52,7 +52,7 @@ func WithIPChecker(
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (any, error) {
-		clientIP, err := clientIPFromContext(ctx)
+		clientIP, err := extractRealIpFromMetadata(ctx)
 		if err != nil {
 			logger.Warn(
 				"failed to determine gRPC client IP",
@@ -87,37 +87,21 @@ func WithIPChecker(
 	}, nil
 }
 
-func clientIPFromContext(ctx context.Context) (net.IP, error) {
-	remotePeer, ok := peer.FromContext(ctx)
+func extractRealIpFromMetadata(ctx context.Context) (net.IP, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return nil, fmt.Errorf("peer information is missing")
+		return nil, fmt.Errorf("metadata is missing")
 	}
+	values := md.Get("x-real-ip")
+	if len(values) > 0 {
+		clientIpStr := values[0]
 
-	if remotePeer.Addr == nil {
-		return nil, fmt.Errorf("peer address is missing")
-	}
-
-	if tcpAddr, ok := remotePeer.Addr.(*net.TCPAddr); ok {
-		if tcpAddr.IP == nil {
-			return nil, fmt.Errorf("TCP peer IP is missing")
+		clientIP := net.ParseIP(clientIpStr)
+		if clientIP == nil {
+			return nil, fmt.Errorf("invalid x-real-ip header value %q", clientIpStr)
 		}
 
-		return tcpAddr.IP, nil
+		return clientIP, nil
 	}
-
-	host, _, err := net.SplitHostPort(remotePeer.Addr.String())
-	if err != nil {
-		return nil, fmt.Errorf(
-			"parse peer address %q: %w",
-			remotePeer.Addr.String(),
-			err,
-		)
-	}
-
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return nil, fmt.Errorf("invalid peer IP %q", host)
-	}
-
-	return ip, nil
+	return nil, fmt.Errorf("x-real-ip header is missing")
 }
