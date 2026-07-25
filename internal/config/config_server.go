@@ -1,3 +1,4 @@
+// Package config parsing passed config values
 package config
 
 import (
@@ -5,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -34,6 +34,7 @@ type OptionsServer struct {
 
 	PublicKey  OptionalString `env:"PUBLIC_KEY" json:"public_key"`
 	PrivateKey OptionalString `env:"PRIVATE_KEY" json:"private_key"`
+
 	// CIDR subnets, comma-separated like 192.168.0.0/24,10.0.0.0/8
 	TrustedSubnets OptionalString `env:"TRUSTED_SUBNETS" json:"trusted_subnets"`
 
@@ -46,252 +47,260 @@ func logSetFlagsServer(options *OptionsServer) {
 	if options == nil {
 		return
 	}
-	var setFlags []string
+
+	fields := make([]zap.Field, 0)
 
 	if options.ServerAddress.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-a=%s", options.ServerAddress.Value))
+		fields = append(fields, zap.String("-a", options.ServerAddress.Value))
 	}
 
 	if options.StoreInterval.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-i=%s", options.StoreInterval.Duration))
+		fields = append(fields, zap.String("-i", options.StoreInterval.Duration.String()))
 	}
 
 	if options.FileStoragePath.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-f=%s", options.FileStoragePath.Value))
+		fields = append(fields, zap.String("-f", options.FileStoragePath.Value))
 	}
 
 	if options.Restore.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-e=%t", options.Restore.Value))
+		fields = append(fields, zap.Bool("-r", options.Restore.Value))
 	}
 
 	if options.DatabaseDSN.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-d=%s", options.DatabaseDSN.Value))
+		fields = append(fields, zap.String("-d", options.DatabaseDSN.Value))
 	}
 
 	if options.MigrationsFolder.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-m=%s", options.MigrationsFolder.Value))
+		fields = append(fields, zap.String("-m", options.MigrationsFolder.Value))
 	}
 
 	if options.AuditURL.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("--audit-url=%s", options.AuditURL.Value))
+		fields = append(fields, zap.String("-audit-url", options.AuditURL.Value))
 	}
 
 	if options.AuditFile.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("--audit-file=%s", options.AuditFile.Value))
+		fields = append(fields, zap.String("-audit-file", options.AuditFile.Value))
 	}
 
 	if options.PublicKey.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-public-key=%s", options.PublicKey.Value))
+		fields = append(fields, zap.String("-public-key", options.PublicKey.Value))
 	}
 
 	if options.PrivateKey.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-private-key=%s", options.PrivateKey.Value))
+		fields = append(fields, zap.String("-private-key", options.PrivateKey.Value))
 	}
 
 	if options.Config.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-config=%s", options.Config.Value))
+		fields = append(fields, zap.String("-config", options.Config.Value))
 	}
 
 	if options.TrustedSubnets.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-trusted-subnets=%s", options.TrustedSubnets.Value))
+		fields = append(fields, zap.String("-t", options.TrustedSubnets.Value))
 	}
 
 	if options.ServerAddressGRPC.BeenSet {
-		setFlags = append(setFlags, fmt.Sprintf("-address-grpc=%s", options.ServerAddressGRPC.Value))
+		fields = append(fields, zap.String("-address-grpc", options.ServerAddressGRPC.Value))
 	}
 
-	if len(setFlags) == 0 {
-		log.Println("no command-line flags were set")
+	if len(fields) == 0 {
+		options.logger.Info("no command-line flags were set")
 		return
 	}
 
-	for _, flagValue := range setFlags {
-		log.Printf("command-line flag set: %s", flagValue)
-	}
+	options.logger.Info("command line options", fields...)
 }
 
 func logSetEnvServer(options *OptionsServer) {
 	if options == nil {
 		return
 	}
-	var setEnv []string
+
+	fields := make([]zap.Field, 0)
 
 	if options.ServerAddress.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("ADDRESS=%s", options.ServerAddress.Value))
+		fields = append(fields, zap.String("ADDRESS", options.ServerAddress.Value))
 	}
 
 	if options.StoreInterval.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("STORE_INTERVAL=%s", options.StoreInterval.Duration))
+		fields = append(fields, zap.String("STORE_INTERVAL", options.StoreInterval.Duration.String()))
 	}
 
 	if options.FileStoragePath.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("FILE_STORAGE_PATH=%s", options.FileStoragePath.Value))
+		fields = append(fields, zap.String("FILE_STORAGE_PATH", options.FileStoragePath.Value))
 	}
 
 	if options.Restore.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("RESTORE=%t", options.Restore.Value))
+		fields = append(fields, zap.Bool("RESTORE", options.Restore.Value))
 	}
 
 	if options.DatabaseDSN.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("DATABASE_DSN=%s", options.DatabaseDSN.Value))
+		fields = append(fields, zap.String("DATABASE_DSN", options.DatabaseDSN.Value))
 	}
 
 	if options.MigrationsFolder.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("MIGRATIONS_FOLDER=%s", options.MigrationsFolder.Value))
+		fields = append(fields, zap.String("MIGRATIONS_FOLDER", options.MigrationsFolder.Value))
 	}
 
 	if options.AuditURL.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("AUDIT_URL=%s", options.AuditURL.Value))
+		fields = append(fields, zap.String("AUDIT_URL", options.AuditURL.Value))
 	}
 
 	if options.AuditFile.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("AUDIT_FILE=%s", options.AuditFile.Value))
+		fields = append(fields, zap.String("AUDIT_FILE", options.AuditFile.Value))
 	}
 
 	if options.PublicKey.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("PUBLIC_KEY=%s", options.PublicKey.Value))
+		fields = append(fields, zap.String("PUBLIC_KEY", options.PublicKey.Value))
 	}
 
 	if options.PrivateKey.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("PRIVATE_KEY=%s", options.PrivateKey.Value))
+		fields = append(fields, zap.String("PRIVATE_KEY", options.PrivateKey.Value))
 	}
 
 	if options.Config.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("CONFIG=%s", options.Config.Value))
+		fields = append(fields, zap.String("CONFIG", options.Config.Value))
 	}
 
 	if options.TrustedSubnets.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("TRUSTED_SUBNETS=%s", options.TrustedSubnets.Value))
+		fields = append(fields, zap.String("TRUSTED_SUBNETS", options.TrustedSubnets.Value))
 	}
 
 	if options.ServerAddressGRPC.BeenSet {
-		setEnv = append(setEnv, fmt.Sprintf("ADDRESS_GRPC=%s", options.ServerAddressGRPC.Value))
+		fields = append(fields, zap.String("ADDRESS_GRPC", options.ServerAddressGRPC.Value))
 	}
 
-	if len(setEnv) == 0 {
-		log.Println("no environment variables were set")
+	if len(fields) == 0 {
+		options.logger.Info("no environment variables were set")
 		return
 	}
 
-	for _, envValue := range setEnv {
-		log.Printf("environment variable set: %s", envValue)
-	}
+	options.logger.Info("environment variables", fields...)
 }
 
-func logConfigOptions(options *OptionsServer) {
+func logConfigOptionsServer(options *OptionsServer) {
 	if options == nil {
 		return
 	}
-	var setOptions []string
+
+	fields := make([]zap.Field, 0)
 
 	if options.ServerAddress.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("address=%s", options.ServerAddress.Value))
+		fields = append(fields, zap.String("address", options.ServerAddress.Value))
 	}
 
 	if options.StoreInterval.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("store_interval=%s", options.StoreInterval.Duration))
+		fields = append(fields, zap.String("store_interval", options.StoreInterval.Duration.String()))
 	}
 
 	if options.FileStoragePath.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("store_file=%s", options.FileStoragePath.Value))
+		fields = append(fields, zap.String("store_file", options.FileStoragePath.Value))
 	}
 
 	if options.Restore.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("restore=%t", options.Restore.Value))
+		fields = append(fields, zap.Bool("restore", options.Restore.Value))
 	}
 
 	if options.DatabaseDSN.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("database_dsn=%s", options.DatabaseDSN.Value))
+		fields = append(fields, zap.String("database_dsn", options.DatabaseDSN.Value))
 	}
 
 	if options.MigrationsFolder.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("migrations_folder=%s", options.MigrationsFolder.Value))
-	}
-
-	if options.PublicKey.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("public_key=%s", options.PublicKey.Value))
-	}
-
-	if options.PrivateKey.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("private_key=%s", options.PrivateKey.Value))
+		fields = append(fields, zap.String("migrations_folder", options.MigrationsFolder.Value))
 	}
 
 	if options.AuditURL.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("audit_url=%s", options.AuditURL.Value))
+		fields = append(fields, zap.String("audit_url", options.AuditURL.Value))
 	}
 
 	if options.AuditFile.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("audit_file=%s", options.AuditFile.Value))
+		fields = append(fields, zap.String("audit_file", options.AuditFile.Value))
+	}
+
+	if options.PublicKey.BeenSet {
+		fields = append(fields, zap.String("public_key", options.PublicKey.Value))
+	}
+
+	if options.PrivateKey.BeenSet {
+		fields = append(fields, zap.String("private_key", options.PrivateKey.Value))
 	}
 
 	if options.TrustedSubnets.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("trusted_subnets=%s", options.TrustedSubnets.Value))
+		fields = append(fields, zap.String("trusted_subnets", options.TrustedSubnets.Value))
 	}
 
 	if options.ServerAddressGRPC.BeenSet {
-		setOptions = append(setOptions, fmt.Sprintf("address_grpc=%s", options.ServerAddressGRPC.Value))
+		fields = append(fields, zap.String("address_grpc", options.ServerAddressGRPC.Value))
 	}
 
-	if len(setOptions) == 0 {
-		log.Println("no config file options were set")
+	if len(fields) == 0 {
+		options.logger.Info("no config file options were set")
 		return
 	}
 
-	for _, optionValue := range setOptions {
-		log.Printf("config file option set: %s", optionValue)
-	}
+	options.logger.Info("config file options", fields...)
 }
 
 // ReadFlagsServer reads server configuration from command-line arguments and environment variables.
 //
-// Returns the final merged server options, using defaults first, command-line flags second,
-// and environment variables last.
-func ReadFlagsServer(args []string) (*OptionsServer, error) {
-	cmdOptions, err := getOptionsServer(args)
+// precedence: environment variables, command-line flags, config file, defaults.
+func ReadFlagsServer(args []string, logger *zap.Logger) (*OptionsServer, error) {
+	if logger == nil {
+		panic("config server logger is nil")
+	}
+
+	cmdOptions, err := getOptionsServer(args, logger)
 	if err != nil {
-		log.Fatalln(err)
+		logger.Fatal("failed to read command-line flags", zap.Error(err))
 	}
 	logSetFlagsServer(cmdOptions)
 
-	envOptions := getEnvOptions()
+	envOptions, err := getEnvOptionsServer(logger)
+	if err != nil {
+		logger.Fatal("failed to read environment variables", zap.Error(err))
+	}
 	logSetEnvServer(envOptions)
 
 	var diskConfigOptions OptionsServer
 	if cmdOptions.Config.BeenSet || envOptions.Config.BeenSet {
-		// we need to read the config file before assembling the full consensus
+		// We need to read the config file before assembling the full consensus.
 		var configFilename string
+
 		if cmdOptions.Config.BeenSet && cmdOptions.Config.Value != "" {
 			configFilename = cmdOptions.Config.Value
 		} else if envOptions.Config.BeenSet && envOptions.Config.Value != "" {
 			configFilename = envOptions.Config.Value
 		}
-		diskConfigOptions, err = getDiskConfigOptions(configFilename)
+
+		diskConfigOptions, err = getDiskConfigOptionsServer(configFilename, logger)
 		if err != nil {
-			log.Fatalln(err)
+			logger.Fatal("failed to read config file", zap.Error(err))
 		}
-		logConfigOptions(&diskConfigOptions)
+
+		logConfigOptionsServer(&diskConfigOptions)
 	}
 
 	finalOptions := OptionsServer{
 		ServerAddress:     OptionalString{Value: "localhost:8080", BeenSet: false},
 		ServerAddressGRPC: OptionalString{Value: "localhost:9090", BeenSet: false},
-
-		StoreInterval:   OptionalSecondsDuration{Duration: time.Second * 300, BeenSet: false},
-		FileStoragePath: OptionalString{Value: "storage.dat", BeenSet: false},
-		DatabaseDSN: OptionalString{Value: "postgres://default_user:default_password@localhost:5432/metrics_db?sslmode=disable",
-			BeenSet: false},
+		StoreInterval:     OptionalSecondsDuration{Duration: time.Second * 300, BeenSet: false},
+		FileStoragePath:   OptionalString{Value: "storage.dat", BeenSet: false},
+		Restore:           OptionalBool{Value: true, BeenSet: false},
+		DatabaseDSN: OptionalString{
+			Value:   "postgres://default_user:default_password@localhost:5432/metrics_db?sslmode=disable",
+			BeenSet: false,
+		},
 		MigrationsFolder: OptionalString{Value: "./migrations", BeenSet: false},
-		Restore:          OptionalBool{Value: true, BeenSet: false},
-		PublicKey:        OptionalString{Value: "", BeenSet: false},
-		PrivateKey:       OptionalString{Value: "", BeenSet: false},
 		AuditFile:        OptionalString{Value: "", BeenSet: false},
 		AuditURL:         OptionalString{Value: "", BeenSet: false},
+		PublicKey:        OptionalString{Value: "", BeenSet: false},
+		PrivateKey:       OptionalString{Value: "", BeenSet: false},
 		TrustedSubnets:   OptionalString{Value: "", BeenSet: false},
-
-		Config: OptionalString{Value: "", BeenSet: false},
+		Config:           OptionalString{Value: "", BeenSet: false},
+		logger:           logger,
 	}
 
-	// env options are the priority, then cmd options, then disk options
+	// Environment options have the highest priority,
+	// then command-line options, then disk config options.
 	mergeOptionsServer(&finalOptions, diskConfigOptions)
 	mergeOptionsServer(&finalOptions, *cmdOptions)
 	mergeOptionsServer(&finalOptions, *envOptions)
@@ -300,7 +309,6 @@ func ReadFlagsServer(args []string) (*OptionsServer, error) {
 		return nil, err
 	}
 
-	//setOptionsTrue(&finalOptions)
 	return &finalOptions, nil
 }
 
@@ -315,30 +323,30 @@ func sanityCheckConfig(optionsSrv *OptionsServer) error {
 
 	for _, rawSubnet := range strings.Split(optionsSrv.TrustedSubnets.Value, ",") {
 		subnet := strings.TrimSpace(rawSubnet)
-		subnetErr := helpers.ValidateMaskCIDR(subnet)
-
-		if subnetErr != nil {
-			return fmt.Errorf("invalid subnet: %s %w", subnet, subnetErr)
+		if err := helpers.ValidateMaskCIDR(subnet); err != nil {
+			return fmt.Errorf("invalid subnet %q: %w", subnet, err)
 		}
 	}
 
 	return nil
-
 }
 
-func getDiskConfigOptions(filename string) (OptionsServer, error) {
+func getDiskConfigOptionsServer(filename string, logger *zap.Logger) (OptionsServer, error) {
 	if filename == "" {
-		return OptionsServer{}, nil
+		return OptionsServer{logger: logger}, nil
 	}
 
 	configBytes, err := os.ReadFile(filename)
 	if err != nil {
-		return OptionsServer{}, err
+		return OptionsServer{logger: logger}, err
 	}
 
-	var options OptionsServer
+	options := OptionsServer{
+		logger: logger,
+	}
+
 	if err = json.Unmarshal(configBytes, &options); err != nil {
-		return OptionsServer{}, err
+		return OptionsServer{logger: logger}, err
 	}
 
 	return options, nil
@@ -348,6 +356,11 @@ func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 	if newValues.ServerAddress.BeenSet {
 		mergeInto.ServerAddress = newValues.ServerAddress
 		mergeInto.ServerAddress.BeenSet = true
+	}
+
+	if newValues.ServerAddressGRPC.BeenSet {
+		mergeInto.ServerAddressGRPC = newValues.ServerAddressGRPC
+		mergeInto.ServerAddressGRPC.BeenSet = true
 	}
 
 	if newValues.StoreInterval.BeenSet {
@@ -404,51 +417,55 @@ func mergeOptionsServer(mergeInto *OptionsServer, newValues OptionsServer) {
 		mergeInto.Config = newValues.Config
 		mergeInto.Config.BeenSet = true
 	}
-
-	if newValues.ServerAddressGRPC.BeenSet {
-		mergeInto.ServerAddressGRPC = newValues.ServerAddressGRPC
-		mergeInto.ServerAddressGRPC.BeenSet = true
-	}
 }
 
-func getEnvOptions() *OptionsServer {
-	var opt OptionsServer
-	err := env.Parse(&opt)
-	if err != nil {
-		log.Fatalln(err)
+func getEnvOptionsServer(logger *zap.Logger) (*OptionsServer, error) {
+	opt := OptionsServer{
+		logger: logger,
 	}
-	return &opt
+
+	if err := env.Parse(&opt); err != nil {
+		return nil, err
+	}
+
+	return &opt, nil
 }
 
-func getOptionsServer(args []string) (*OptionsServer, error) {
-
-	opt := &OptionsServer{}
+func getOptionsServer(args []string, logger *zap.Logger) (*OptionsServer, error) {
+	opt := &OptionsServer{
+		logger: logger,
+	}
 
 	fs := flag.NewFlagSet("metrics-aggregator-server", flag.ContinueOnError)
-	fs.SetOutput(io.Discard) // optional: silence flag errors in tests
+	fs.SetOutput(io.Discard)
 
 	fs.Var(&opt.ServerAddress, "a", "port on which the server should run")
 	fs.Var(&opt.ServerAddressGRPC, "address-grpc", "port on which the grpc server should run")
 
-	fs.Var(&opt.StoreInterval, "i", "интервал времени в секундах, по истечении которого"+
-		" текущие показания сервера сохраняются на диск (по умолчанию 300 секунд, значение 0 делает запись синхронной)")
-	fs.Var(&opt.FileStoragePath, "f", "путь до файла, куда "+
-		"сохраняются текущие значения. Имя файла для значения по умолчанию придумайте сами.")
-	fs.Var(&opt.Restore, "r", "булево значение (true/false), определяющее, "+
-		"следует ли загружать ранее сохранённые значения из указанного файла при старте сервера")
+	fs.Var(&opt.StoreInterval, "i",
+		"интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск "+
+			"(по умолчанию 300 секунд, значение 0 делает запись синхронной)",
+	)
+	fs.Var(
+		&opt.FileStoragePath, "f", "путь до файла, куда сохраняются текущие значения",
+	)
+	fs.Var(&opt.Restore, "r", "булево значение (true/false), определяющее, следует ли загружать ранее"+
+		" сохранённые значения из указанного файла при старте сервера",
+	)
+
 	fs.Var(&opt.DatabaseDSN, "d", "connection string/dsn для postgres базы данных")
 	fs.Var(&opt.MigrationsFolder, "m", "относительный путь до миграций, например ./migrations")
 
 	fs.Var(&opt.AuditURL, "audit-url", "адрес сервера аудита")
-	fs.Var(&opt.AuditFile, "audit-file", "путь до файла с публичным ключом аудита")
+	fs.Var(&opt.AuditFile, "audit-file", "путь до файла аудита")
 
-	fs.Var(&opt.PublicKey, "public-key", "симметричный ключ шифрования для подписи сообщений")
+	fs.Var(&opt.PublicKey, "public-key", "путь до файла с публичным ключом")
 	fs.Var(&opt.PrivateKey, "private-key", "путь до файла с приватным ключом")
 
 	fs.Var(&opt.Config, "config", "путь до файла с конфигурацией приложения")
 	fs.Var(&opt.Config, "c", "путь до файла с конфигурацией приложения")
 
-	fs.Var(&opt.TrustedSubnets, "t", "CIDR допустимых подсетей разделенный запятой")
+	fs.Var(&opt.TrustedSubnets, "t", "CIDR допустимых подсетей, разделённых запятой")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err
