@@ -21,7 +21,7 @@ func main() {
 	}
 	defer logger.Sync() // flushes buffer, if any
 
-	currentConfig := config.ReadFlagsClient(os.Args[1:])
+	currentConfig := config.ReadFlagsClient(os.Args[1:], logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer stop()

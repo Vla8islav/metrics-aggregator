@@ -38,7 +38,7 @@ func main() {
 	}
 	defer logger.Sync() // flushes buffer, if any
 
-	currentConfig, err := config.ReadFlagsServer(os.Args[1:])
+	currentConfig, err := config.ReadFlagsServer(os.Args[1:], logger)
 	if err != nil {
 		logger.Fatal("failed to read config", zap.Error(err))
 	}

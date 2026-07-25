@@ -231,7 +231,7 @@ func getDiskConfigOptionsClient(filename string, logger *zap.Logger) (OptionsCli
 		return OptionsClient{logger: logger}, err
 	}
 
-	var options OptionsClient
+	options := OptionsClient{logger: logger}
 	if err = json.Unmarshal(configBytes, &options); err != nil {
 		return OptionsClient{logger: logger}, err
 	}
