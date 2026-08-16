@@ -23,7 +23,11 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
 	models "github.com/Vla8islav/metrics-aggregator/internal/model"
+	"github.com/Vla8islav/metrics-aggregator/internal/proto"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 )
 
 // Agent periodically collects runtime metrics and reports them to the server
@@ -38,10 +42,13 @@ type Agent struct {
 	gauges *models.Stats
 	config *config.OptionsClient
 	logger *zap.Logger
+
+	grpcConn   *grpc.ClientConn
+	grpcClient proto.MetricsClient
 }
 
 // NewAgent creates an Agent configured with the provided client options and logger
-func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
+func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) (*Agent, error) {
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration
 	reportInterval := currentConfig.ReportInterval.Duration
@@ -53,6 +60,25 @@ func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
 	s := models.NewStats()
 	retryClient := helpers.NewHTTPRetryClient(helpers.DefaultShouldRetryStatus,
 		5*time.Second, 2)
+
+	creds, err := credentials.NewClientTLSFromFile(
+		currentConfig.CryptoKey.Value,
+		"",
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("load gRPC TLS certificate: %w", err)
+	}
+
+	grpcConn, err := grpc.NewClient(
+		currentConfig.ServerAddressGRPC.Value,
+		grpc.WithTransportCredentials(creds),
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("create gRPC client: %w", err)
+	}
+
 	return &Agent{
 		client:         retryClient,
 		serverAddr:     serverAddr,
@@ -62,7 +88,9 @@ func NewAgent(currentConfig *config.OptionsClient, logger *zap.Logger) *Agent {
 		config:         currentConfig,
 		logger:         logger,
 		rateLimit:      rateLimit,
-	}
+		grpcConn:       grpcConn,
+		grpcClient:     proto.NewMetricsClient(grpcConn),
+	}, nil
 }
 
 // Start begins metric collection and reporting until ctx is canceled
@@ -178,7 +206,7 @@ func (a *Agent) report(ctx context.Context) error {
 		payload = append(payload, models.Metrics{MType: models.Counter, ID: name, Delta: &value})
 	}
 
-	err := a.sendBatch(ctx, payload)
+	err := a.sendBatchGRPC(ctx, payload)
 	if err != nil {
 		return err
 	}
@@ -224,6 +252,12 @@ func (a *Agent) send(ctx context.Context, metricType models.MetricType, metricNa
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
+	//Добавьте в запрос агента заголовок X-Real-IP, в котором должен содержаться IP-адрес хоста агента.
+	interfaceAddr, err := helpers.GetInterfaceAddr()
+	if err != nil {
+		return err
+	}
+	req.Header.Set("X-Real-IP", interfaceAddr)
 
 	resp, err := a.client.Do(req)
 	if err != nil {
@@ -365,6 +399,13 @@ func (a *Agent) sendBatch(ctx context.Context, metrics []models.Metrics) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept-Encoding", "gzip")
+
+	interfaceAddr, err := helpers.GetInterfaceAddr()
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("X-Real-IP", interfaceAddr)
 	signatureHeaderValue := a.getSignatureHeaderValue(payloadBytes)
 	req.Header.Set(helpers.ShaSimpleSignatureHeader, signatureHeaderValue)
 
@@ -398,4 +439,95 @@ func (a *Agent) runReporter(ctx context.Context, jobs chan<- job) {
 			}
 		}
 	}
+}
+
+// sendBatchGRPC sends a batch of metrics through the gRPC API.
+func (a *Agent) sendBatchGRPC(
+	ctx context.Context,
+	metrics []models.Metrics,
+) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+
+	protoMetrics := make([]*proto.Metric, 0, len(metrics))
+
+	for i := range metrics {
+		metric, err := metricToProto(metrics[i])
+		if err != nil {
+			return fmt.Errorf(
+				"convert metric at index %d: %w",
+				i,
+				err,
+			)
+		}
+
+		protoMetrics = append(protoMetrics, metric)
+	}
+
+	interfaceAddr, err := helpers.GetInterfaceAddr()
+	if err != nil {
+		return fmt.Errorf("get agent IP address: %w", err)
+	}
+
+	ctx = metadata.AppendToOutgoingContext(
+		ctx,
+		"x-real-ip",
+		interfaceAddr,
+	)
+
+	request := proto.UpdateMetricsRequest_builder{
+		Metrics: protoMetrics,
+	}.Build()
+
+	_, err = a.grpcClient.UpdateMetrics(ctx, request)
+	if err != nil {
+		return fmt.Errorf("update metrics through gRPC: %w", err)
+	}
+
+	a.logger.Debug(
+		"gRPC metrics batch sent",
+		zap.Int("metricsCount", len(protoMetrics)),
+	)
+
+	return nil
+}
+
+func metricToProto(metric models.Metrics) (*proto.Metric, error) {
+	resultProto := &proto.Metric{}
+
+	resultProto.SetId(metric.ID)
+
+	switch metric.MType {
+	case models.Gauge:
+		if metric.Value == nil {
+			return nil, fmt.Errorf(
+				"gauge metric %q has nil value",
+				metric.ID,
+			)
+		}
+
+		resultProto.SetType(proto.Metric_GAUGE)
+		resultProto.SetValue(*metric.Value)
+
+	case models.Counter:
+		if metric.Delta == nil {
+			return nil, fmt.Errorf(
+				"counter metric %q has nil delta",
+				metric.ID,
+			)
+		}
+
+		resultProto.SetType(proto.Metric_COUNTER)
+		resultProto.SetDelta(*metric.Delta)
+
+	default:
+		return nil, fmt.Errorf(
+			"metric %q has unsupported type %q",
+			metric.ID,
+			metric.MType,
+		)
+	}
+
+	return resultProto, nil
 }

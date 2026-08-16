@@ -36,7 +36,7 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Get metrics for %s %s", metricType, metricName)
 	// let's do a request sanity check
 	if metricName == "" {
-		log.Printf("Metric name is empty %s", metricName)
+		log.Printf("MetricService name is empty %s", metricName)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"go.uber.org/zap"
 
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 )
@@ -43,7 +44,11 @@ func getTestStorage(t *testing.T) *PostgresStorage {
 		log.Fatalf("failed to get connection string: %v", err)
 	}
 
-	cfg := config.ReadFlagsServer([]string{})
+	cfg, err := config.ReadFlagsServer([]string{}, zap.NewNop())
+	if err != nil {
+		log.Fatalf("failed to read config: %v", err)
+	}
+
 	cfg.DatabaseDSN.Value = dsn
 	cfg.DatabaseDSN.BeenSet = true
 

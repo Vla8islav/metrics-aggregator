@@ -42,7 +42,7 @@ func handleInboundEncryption(r *http.Request, privateKey *rsa.PrivateKey) ([]byt
 	}
 
 	var payload models.EncryptedPayload
-	if err := json.Unmarshal(body, &payload); err != nil {
+	if err = json.Unmarshal(body, &payload); err != nil {
 		return nil, err
 	}
 

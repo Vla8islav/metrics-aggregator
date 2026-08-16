@@ -21,12 +21,15 @@ func main() {
 	}
 	defer logger.Sync() // flushes buffer, if any
 
-	currentConfig := config.ReadFlagsClient(os.Args[1:])
+	currentConfig := config.ReadFlagsClient(os.Args[1:], logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer stop()
 
-	ag := agent.NewAgent(currentConfig, logger)
+	ag, err := agent.NewAgent(currentConfig, logger)
+	if err != nil {
+		log.Fatalf("failed to initialize agent: %v", err)
+	}
 
 	serverAddr := "http://" + currentConfig.ServerAddress.Value
 	pollInterval := currentConfig.PollInterval.Duration

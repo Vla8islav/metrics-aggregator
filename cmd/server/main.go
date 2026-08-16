@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,11 +14,16 @@ import (
 	"github.com/Vla8islav/metrics-aggregator/internal/audit"
 	"github.com/Vla8islav/metrics-aggregator/internal/config"
 	"github.com/Vla8islav/metrics-aggregator/internal/domain"
+	"github.com/Vla8islav/metrics-aggregator/internal/grpcserver"
 	"github.com/Vla8islav/metrics-aggregator/internal/handler"
 	"github.com/Vla8islav/metrics-aggregator/internal/helpers"
+	"github.com/Vla8islav/metrics-aggregator/internal/interceptors_grpc"
 	"github.com/Vla8islav/metrics-aggregator/internal/middlewares"
+	"github.com/Vla8islav/metrics-aggregator/internal/proto"
 	"github.com/Vla8islav/metrics-aggregator/internal/service"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	_ "net/http/pprof"
 )
@@ -32,7 +38,10 @@ func main() {
 	}
 	defer logger.Sync() // flushes buffer, if any
 
-	currentConfig := config.ReadFlagsServer(os.Args[1:])
+	currentConfig, err := config.ReadFlagsServer(os.Args[1:], logger)
+	if err != nil {
+		logger.Fatal("failed to read config", zap.Error(err))
+	}
 	logger.Info("starting server ", zap.String("Server addr", currentConfig.ServerAddress.Value))
 
 	var db domain.MetricRepository
@@ -45,6 +54,55 @@ func main() {
 	}
 
 	srvApp := service.NewMetricsService(db)
+
+	// <grpc>
+
+	var interceptors []grpc.UnaryServerInterceptor
+	interceptors = append(interceptors, interceptors_grpc.WithLogging(logger))
+	interceptors = addOptionalIPCheck(currentConfig, logger, interceptors)
+
+	var grpcOptions []grpc.ServerOption
+	grpcOptions = append(
+		grpcOptions,
+		grpc.ChainUnaryInterceptor(interceptors...),
+	)
+	if currentConfig.PublicKey.BeenSet && currentConfig.PrivateKey.BeenSet {
+		transportCredentials, err2 := credentials.NewServerTLSFromFile(
+			currentConfig.PublicKey.Value,
+			currentConfig.PrivateKey.Value,
+		)
+		if err2 != nil {
+			panic("error loading gRPC TLS credentials: " + err2.Error())
+		}
+		grpcOptions = append(
+			grpcOptions,
+			grpc.Creds(transportCredentials),
+		)
+	}
+
+	grpcSrv := grpc.NewServer(grpcOptions...)
+
+	proto.RegisterMetricsServer(
+		grpcSrv,
+		grpcserver.NewGRPCServer(srvApp),
+	)
+	grpcListener, err := net.Listen(
+		"tcp",
+		currentConfig.ServerAddressGRPC.Value,
+	)
+
+	if err != nil {
+		logger.Fatal("failed to create grpc listener", zap.Error(err))
+	}
+
+	go func() {
+		logger.Info("starting grpc server ", zap.String("Server addr", currentConfig.ServerAddressGRPC.Value))
+		if err = grpcSrv.Serve(grpcListener); err != nil {
+			logger.Error("grpc server stopped", zap.Error(err))
+		}
+	}()
+	// </grpc>
+
 	h := handler.NewHandler(srvApp, logger)
 	r := handler.NewRouter(h)
 
@@ -67,18 +125,19 @@ func main() {
 		r,
 		middlewares.WithLogging(logger),
 		middlewares.WithAudit(publisher),
+		middlewares.WithIpChecker(currentConfig.TrustedSubnets, logger),
 	)
 
-	if currentConfig.SecretKey.BeenSet {
+	if currentConfig.PublicKey.BeenSet {
 		handlerWithMW = middlewares.ChainMiddlewares(
 			handlerWithMW,
-			middlewares.WithChecksum(currentConfig.SecretKey.Value, logger),
+			middlewares.WithChecksum(currentConfig.PublicKey.Value, logger),
 		)
 	}
 
-	if currentConfig.CryptoKey.BeenSet {
-		privateKey, err := helpers.ReadPrivateKey(currentConfig.CryptoKey.Value)
-		if err != nil {
+	if currentConfig.PrivateKey.BeenSet {
+		privateKey, err2 := helpers.ReadPrivateKey(currentConfig.PrivateKey.Value)
+		if err2 != nil {
 			logger.Fatal("failed to read private key", zap.Error(err))
 		}
 		handlerWithMW = middlewares.ChainMiddlewares(
@@ -118,6 +177,7 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 
+	grpcSrv.GracefulStop()
 	if err = srvImpl.Shutdown(shutdownCtx); err != nil {
 		logger.Fatal("failed to shutdown server gracefully", zap.Error(err))
 	}
@@ -127,4 +187,23 @@ func main() {
 	}
 
 	logger.Info("server stopped")
+}
+
+func addOptionalIPCheck(currentConfig *config.OptionsServer,
+	logger *zap.Logger,
+	interceptors []grpc.UnaryServerInterceptor) []grpc.UnaryServerInterceptor {
+	if currentConfig.TrustedSubnets.BeenSet {
+		ipChecker, err := interceptors_grpc.WithIPChecker(
+			currentConfig.TrustedSubnets,
+			logger,
+		)
+		if err != nil {
+			logger.Fatal(
+				"failed to initialize gRPC IP checker",
+				zap.Error(err),
+			)
+		}
+		interceptors = append(interceptors, ipChecker)
+	}
+	return interceptors
 }
